@@ -470,7 +470,6 @@
                 { "home": "DSC Arminia Bielefeld", "away": "1. FC Heidenheim 1846", "date": "2026-09-20", "time": "13:30" },
                 { "home": "FC Energie Cottbus", "away": "FC St. Pauli", "date": "2026-09-20", "time": "13:30" }
             ],
-            
             "7": [
                 { "home": "1. FC Heidenheim 1846", "away": "1. FC Kaiserslautern", "date": "2026-10-09", "time": "18:30" },
                 { "home": "Eintracht Braunschweig", "away": "Holstein Kiel", "date": "2026-10-09", "time": "18:30" },
@@ -858,7 +857,6 @@
     }
 
     function jumpToLiveMatchday() {
-        // Sucht nach dem Spieltag, der heute stattfindet, oder fällt auf den nächsten anstehenden zurück
         let todayStr = new Date().toISOString().split('T')[0];
         let targetMatchday = 1;
         let foundToday = false;
@@ -875,7 +873,6 @@
             if (foundToday) break;
         }
 
-        // Falls heute kein Spiel ist, suche den nächsten Spieltag in der Zukunft
         if (!foundToday) {
             for (let mDay = 1; mDay <= 34; mDay++) {
                 let matches = leagueData.matches[mDay] || [];
@@ -1077,7 +1074,26 @@
         saveToCloud();
     }
 
+    // Automatischer Hintergrund-Refresh (nur wenn am aktiven Spieltag heute ein Spiel stattfindet)
+    function setupAutoRefresh() {
+        setInterval(() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            let hasMatchToday = false;
+            let currentMatchdayData = leagueData.matches[leagueData.currentMatchday];
+            
+            if (Array.isArray(currentMatchdayData)) {
+                hasMatchToday = currentMatchdayData.some(match => match.date === todayStr);
+            }
+
+            if (hasMatchToday) {
+                console.log("Live-Spieltag erkannt: Aktualisiere Daten aus Supabase...");
+                loadFromCloud();
+            }
+        }, 30000); // Alle 30 Sekunden prüfen
+    }
+
     loadFromCloud();
+    setupAutoRefresh();
 </script>
 
 </body>

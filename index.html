@@ -110,7 +110,23 @@
             margin-bottom: 15px;
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(46, 160, 67, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+
+        .header-action-btn {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: normal;
+            transition: background 0.2s;
+        }
+        .header-action-btn:hover { background: rgba(0, 0, 0, 0.4); }
 
         .matchday-controls {
             display: flex;
@@ -118,6 +134,8 @@
             align-items: center;
             margin-bottom: 15px;
             font-size: 0.9rem;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .matchday-btn {
@@ -131,6 +149,13 @@
             transition: background 0.2s;
         }
         .matchday-btn:hover { background: var(--liga2-dark); border-color: var(--liga2-green); }
+
+        .live-btn {
+            background: rgba(46, 160, 67, 0.2);
+            border: 1px solid var(--liga2-bright-green);
+            color: var(--liga2-bright-green);
+        }
+        .live-btn:hover { background: rgba(46, 160, 67, 0.35); }
 
         .table-container {
             width: 100%;
@@ -274,11 +299,17 @@
 
     <!-- SPIELTAGS-TABELLE -->
     <div class="section-box">
-        <div class="section-header" id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</div>
+        <div class="section-header">
+            <span id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</span>
+            <button class="header-action-btn" onclick="loadFromCloud()">🔄 Aktualisieren</button>
+        </div>
         <div class="matchday-controls">
-            <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger Spieltag</button>
-            <strong id="matchdayDisplay" style="color: var(--liga2-bright-green); font-size: 1.1rem;">Spieltag 1</strong>
-            <button class="matchday-btn" onclick="changeMatchday(1)">Nächster Spieltag ▶</button>
+            <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <strong id="matchdayDisplay" style="color: var(--liga2-bright-green); font-size: 1.1rem;">Spieltag 1</strong>
+                <button class="matchday-btn live-btn" onclick="jumpToLiveMatchday()" title="Zum aktuellen Spieltag springen">🔴 Live-Spieltag</button>
+            </div>
+            <button class="matchday-btn" onclick="changeMatchday(1)">Nächster ▶</button>
         </div>
         <div class="table-container">
             <table>
@@ -298,7 +329,10 @@
 
     <!-- GESAMT-TABELLE -->
     <div class="section-box">
-        <div class="section-header">2. Bundesliga-Tabelle (Gesamt)</div>
+        <div class="section-header">
+            <span>2. Bundesliga-Tabelle (Gesamt)</span>
+            <button class="header-action-btn" onclick="loadFromCloud()">🔄 Aktualisieren</button>
+        </div>
         <div class="table-container">
             <table>
                 <thead>
@@ -819,6 +853,39 @@
 
     function changeMatchday(amount) {
         leagueData.currentMatchday = Math.max(1, Math.min(34, leagueData.currentMatchday + amount));
+        saveAndSync();
+    }
+
+    function jumpToLiveMatchday() {
+        // Sucht nach dem Spieltag, der heute stattfindet, oder fällt auf den nächsten anstehenden zurück
+        let todayStr = new Date().toISOString().split('T')[0];
+        let targetMatchday = 1;
+        let foundToday = false;
+
+        for (let mDay = 1; mDay <= 34; mDay++) {
+            let matches = leagueData.matches[mDay] || [];
+            for (let m of matches) {
+                if (m.date === todayStr) {
+                    targetMatchday = parseInt(mDay);
+                    foundToday = true;
+                    break;
+                }
+            }
+            if (foundToday) break;
+        }
+
+        // Falls heute kein Spiel ist, suche den nächsten Spieltag in der Zukunft
+        if (!foundToday) {
+            for (let mDay = 1; mDay <= 34; mDay++) {
+                let matches = leagueData.matches[mDay] || [];
+                if (matches.length > 0 && matches[0].date >= todayStr) {
+                    targetMatchday = parseInt(mDay);
+                    break;
+                }
+            }
+        }
+
+        leagueData.currentMatchday = targetMatchday;
         saveAndSync();
     }
 

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2. Bundesliga — Spielplan, Tabelle & Statistik 2026/27</title>
+    <!-- Supabase Client Bibliothek laden -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #131b2e;
+            --text-color: #f0f6fc;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            --liga2-green: #2ea043;
+            --liga2-green-hover: #238636;
+            --liga2-dark: #112217;
+            --accent-green: rgba(46, 160, 67, 0.25);
+            --accent-yellow: rgba(227, 179, 64, 0.22);
+            --liga2-bright-green: #3fb950;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            border: 1px solid rgba(46, 160, 67, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(46, 160, 67, 0.15);
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
+
+        h2 {
+            text-align: center;
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.6rem;
+            font-weight: 800;
+        }
+        h2 span {
+            color: var(--liga2-bright-green);
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .meta-info {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .supabase-badge {
+            color: #3fb950;
+            background: rgba(46, 160, 67, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(46, 160, 67, 0.3);
+            font-weight: 600;
+        }
+
+        .section-box {
+            background: #0b0f19;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            background-color: var(--liga2-green);
+            color: #ffffff;
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(46, 160, 67, 0.3);
+        }
+
+        .matchday-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .matchday-btn {
+            background: #21262d;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .matchday-btn:hover { background: var(--liga2-dark); border-color: var(--liga2-green); }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        th {
+            background-color: var(--liga2-dark);
+            color: #ffffff;
+            padding: 10px 8px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--liga2-green);
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        tr:hover { background-color: rgba(46, 160, 67, 0.03); }
+
+        tr.rank-first td, tr.rank-second td {
+            background: var(--accent-green);
+            color: #3fb950;
+            font-weight: bold;
+        }
+        tr.rank-third td {
+            background: rgba(46, 160, 67, 0.15);
+            color: var(--liga2-bright-green);
+        }
+        tr.rank-last td {
+            background: var(--accent-yellow);
+            color: #e3b341;
+        }
+
+        .admin-toggle-wrapper {
+            text-align: right;
+            margin-top: 15px;
+        }
+        .admin-toggle-btn {
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .admin-toggle-btn:hover {
+            color: var(--liga2-bright-green);
+            border-color: var(--liga2-green);
+        }
+
+        .admin-card {
+            background: #1b1622;
+            border: 1px solid var(--liga2-green);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        .match-input-card {
+            background: #131b2e;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 2fr 2fr repeat(2, 1fr);
+            gap: 8px;
+            align-items: end;
+        }
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr 1fr; }
+            .form-grid .form-group-team { grid-column: span 2; }
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+        .form-control {
+            width: 100%;
+            padding: 6px;
+            background: #0b0f19;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .form-control:focus { border-color: var(--liga2-green); outline: none; }
+
+        .btn {
+            background: var(--liga2-green);
+            color: #ffffff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            width: 100%;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: var(--liga2-green-hover); }
+        
+        .btn-danger {
+            background: transparent;
+            border: none;
+            color: #f85149;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-row">
+        <h2>2. <span>Bundesliga</span></h2>
+    </div>
+    <div class="subtitle" id="leagueSubtitle">Saison 2026/27</div>
+    <div class="meta-info">
+        <span>⚡ Web-App & Management: Jürgen Schützendorf</span>
+        <span class="supabase-badge">● Mit Supabase verbunden (2. Liga)</span>
+    </div>
+
+    <!-- SPIELTAGS-TABELLE -->
+    <div class="section-box">
+        <div class="section-header" id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</div>
+        <div class="matchday-controls">
+            <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger Spieltag</button>
+            <strong id="matchdayDisplay" style="color: var(--liga2-bright-green); font-size: 1.1rem;">Spieltag 1</strong>
+            <button class="matchday-btn" onclick="changeMatchday(1)">Nächster Spieltag ▶</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 130px; color: #ffffff;">Termin</th>
+                        <th style="text-align: right;">Heimmannschaft</th>
+                        <th style="text-align: center; width: 140px;">Ergebnis / Status</th>
+                        <th>Gastmannschaft</th>
+                        <th style="width: 40px; text-align: center;"></th>
+                    </tr>
+                </thead>
+                <tbody id="matchdayTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- GESAMT-TABELLE -->
+    <div class="section-box">
+        <div class="section-header">2. Bundesliga-Tabelle (Gesamt)</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 35px;">Pl.</th>
+                        <th>Mannschaft</th>
+                        <th style="text-align: center;">Sp</th>
+                        <th style="text-align: center;">S</th>
+                        <th style="text-align: center;">U</th>
+                        <th style="text-align: center;">N</th>
+                        <th style="text-align: center;">Tore</th>
+                        <th style="text-align: center;">Diff</th>
+                        <th style="text-align: center;">Punkte</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted);">
+            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-green); border-radius: 2px; display: inline-block;"></span> Direkter Aufstieg (1. & 2. Platz)</div>
+            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: rgba(46, 160, 67, 0.15); border: 1px solid var(--liga2-green); border-radius: 2px; display: inline-block;"></span> Relegationsplatz (3. Platz)</div>
+            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-yellow); border-radius: 2px; display: inline-block;"></span> Abstiegsplätze</div>
+        </div>
+    </div>
+
+    <!-- ADMIN BEREICH -->
+    <div class="admin-card" id="adminCard">
+        <div style="font-weight: bold; color: var(--liga2-bright-green); margin-bottom: 12px; text-transform: uppercase; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>✏️ Ergebnisse für <span id="adminMatchdayLabel">Spieltag 1</span> erfassen</span>
+            <span style="font-size: 0.7rem; color: #3fb950;">● Admin-Modus Aktiv</span>
+        </div>
+        <div id="matchInputsContainer"></div>
+        <button class="btn" onclick="saveAllMatches()">Alle Ergebnisse speichern</button>
+    </div>
+
+    <div class="admin-toggle-wrapper">
+        <button class="admin-toggle-btn" onclick="toggleAdminMode()">⚙️ Admin-Zugang</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://lhusylpjnujlqomougmg.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ADMIN_PIN = "1919";
+    let isAdmin = false;
+
+    let leagueData = {
+        currentMatchday: 1,
+        teams: [
+            "VfL Wolfsburg",
+            "1. FC Heidenheim",
+            "FC St. Pauli",
+            "Hannover 96",
+            "SV Darmstadt 98",
+            "1. FC Kaiserslautern",
+            "Hertha BSC",
+            "1. FC Nürnberg",
+            "Karlsruher SC",
+            "SpVgg Greuther Fürth",
+            "VfL Bochum",
+            "Holstein Kiel",
+            "Eintracht Braunschweig",
+            "Dynamo Dresden",
+            "1. FC Magdeburg",
+            "Arminia Bielefeld",
+            "VfL Osnabrück",
+            "FC Energie Cottbus"
+        ],
+        matches: {
+            "1": [
+                { "home": "VfL Wolfsburg", "away": "1. FC Heidenheim", "date": "2026-08-28", "time": "18:30" },
+                { "home": "FC St. Pauli", "away": "Hannover 96", "date": "2026-08-29", "time": "13:00" },
+                { "home": "SV Darmstadt 98", "away": "1. FC Kaiserslautern", "date": "2026-08-29", "time": "13:00" },
+                { "home": "Hertha BSC", "away": "1. FC Nürnberg", "date": "2026-08-29", "time": "13:00" },
+                { "home": "Karlsruher SC", "away": "SpVgg Greuther Fürth", "date": "2026-08-29", "time": "13:00" },
+                { "home": "VfL Bochum", "away": "Holstein Kiel", "date": "2026-08-30", "time": "13:30" },
+                { "home": "Eintracht Braunschweig", "away": "Dynamo Dresden", "date": "2026-08-30", "time": "13:30" },
+                { "home": "1. FC Magdeburg", "away": "Arminia Bielefeld", "date": "2026-08-30", "time": "13:30" },
+                { "home": "VfL Osnabrück", "away": "FC Energie Cottbus", "date": "2026-08-31", "time": "20:30" }
+            ]
+        }
+    };
+
+    function toggleAdminMode() {
+        const adminCard = document.getElementById('adminCard');
+        if (isAdmin) {
+            isAdmin = false;
+            adminCard.style.display = 'none';
+            renderMatchdayTable();
+            return;
+        }
+        let enteredPin = prompt("Bitte Admin-PIN eingeben:");
+        if (enteredPin === ADMIN_PIN) {
+            isAdmin = true;
+            adminCard.style.display = 'block';
+            renderAll();
+        } else if (enteredPin !== null) {
+            alert("Falsche PIN!");
+        }
+    }
+
+    async function loadFromCloud() {
+        try {
+            let { data, error } = await supabaseClient
+                .from('bundesliga2_2627')
+                .select('payload')
+                .eq('id', 'season_data')
+                .single();
+
+            if (data && data.payload) {
+                let cloudData = data.payload;
+                if (cloudData && cloudData.matches) {
+                    leagueData.currentMatchday = cloudData.currentMatchday || leagueData.currentMatchday;
+                    mergeMatches(cloudData);
+                }
+            } else {
+                saveToCloud();
+            }
+        } catch (e) {
+            console.log('Supabase Ladehinweis:', e);
+        }
+        renderAll();
+    }
+
+    function mergeMatches(sourceData) {
+        if (!sourceData || !sourceData.matches) return;
+        for (let mDay in sourceData.matches) {
+            if (leagueData.matches[mDay]) {
+                sourceData.matches[mDay].forEach((savedM, sIdx) => {
+                    if (leagueData.matches[mDay][sIdx]) {
+                        if (savedM.homeScore !== undefined) leagueData.matches[mDay][sIdx].homeScore = savedM.homeScore;
+                        if (savedM.awayScore !== undefined) leagueData.matches[mDay][sIdx].awayScore = savedM.awayScore;
+                    }
+                });
+            }
+        }
+    }
+
+    async function saveToCloud() {
+        try {
+            let { error } = await supabaseClient
+                .from('bundesliga2_2627')
+                .upsert({ id: 'season_data', payload: leagueData });
+            
+            if (error) {
+                console.error('Supabase Speicherfehler:', error.message);
+                alert('Fehler beim Speichern in Supabase: ' + error.message);
+            }
+        } catch (e) {
+            console.error('Speicherfehler:', e);
+        }
+    }
+
+    function changeMatchday(amount) {
+        leagueData.currentMatchday = Math.max(1, Math.min(34, leagueData.currentMatchday + amount));
+        saveAndSync();
+    }
+
+    function renderAll() {
+        document.getElementById('matchdayDisplay').textContent = `Spieltag ${leagueData.currentMatchday}`;
+        document.getElementById('adminMatchdayLabel').textContent = `Spieltag ${leagueData.currentMatchday}`;
+        document.getElementById('matchdayTableHeader').textContent = `Spieltag ${leagueData.currentMatchday} — Spiele & Ergebnisse`;
+        
+        renderMatchdayTable();
+        renderTable();
+        if (isAdmin) renderInputForm();
+    }
+
+    function renderMatchdayTable() {
+        let tbody = document.getElementById('matchdayTableBody');
+        tbody.innerHTML = '';
+        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
+
+        if (existingMatches.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Für diesen Spieltag sind noch keine Spiele hinterlegt. (Im Admin-Modus ergänzen)</td></tr>`;
+            return;
+        }
+
+        existingMatches.forEach((m, idx) => {
+            let hasResult = m.homeScore !== undefined && m.homeScore !== null && m.awayScore !== undefined && m.awayScore !== null;
+            let formattedDate = m.date ? m.date.split('-').reverse().join('.') : '-';
+            let timeStr = m.time ? ` ${m.time} Uhr` : '';
+            
+            let resultDisplay = hasResult ? `<strong>${m.homeScore}:${m.awayScore}</strong>` : `<span style="color: var(--text-muted); font-style: italic;">vs</span>`;
+            let deleteBtn = isAdmin ? `<button class="btn-danger" onclick="deleteMatchResult(${idx})" title="Ergebnis löschen">✕</button>` : '';
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-size: 0.8rem; color: #ffffff;">${formattedDate}${timeStr}</td>
+                <td style="text-align: right;">${m.home}</td>
+                <td style="text-align: center;">${resultDisplay}</td>
+                <td>${m.away}</td>
+                <td style="text-align: center;">${deleteBtn}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderTable() {
+        let tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        let stats = {};
+        leagueData.teams.forEach(t => {
+            stats[t] = { name: t, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+        });
+
+        Object.values(leagueData.matches).forEach(matchList => {
+            if (!Array.isArray(matchList)) return;
+            matchList.forEach(m => {
+                let hScore = m.homeScore !== undefined && m.homeScore !== null ? m.homeScore : null;
+                let aScore = m.awayScore !== undefined && m.awayScore !== null ? m.awayScore : null;
+
+                if (hScore === null || aScore === null || !stats[m.home] || !stats[m.away]) return;
+                
+                let homeScore = parseInt(hScore);
+                let awayScore = parseInt(aScore);
+
+                stats[m.home].played++;
+                stats[m.away].played++;
+                stats[m.home].goalsFor += homeScore;
+                stats[m.home].goalsAgainst += awayScore;
+                stats[m.away].goalsFor += awayScore;
+                stats[m.away].goalsAgainst += homeScore;
+
+                if (homeScore > awayScore) {
+                    stats[m.home].won++;
+                    stats[m.home].points += 3;
+                    stats[m.away].lost++;
+                } else if (homeScore < awayScore) {
+                    stats[m.away].won++;
+                    stats[m.away].points += 3;
+                    stats[m.home].lost++;
+                } else {
+                    stats[m.home].draw++;
+                    stats[m.home].points += 1;
+                    stats[m.away].draw++;
+                    stats[m.away].points += 1;
+                }
+            });
+        });
+
+        let sorted = Object.values(stats).sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            let diffB = b.goalsFor - b.goalsAgainst;
+            let diffA = a.goalsFor - a.goalsAgainst;
+            if (diffB !== diffA) return diffB - diffA;
+            return b.goalsFor - a.goalsFor;
+        });
+
+        sorted.forEach((s, idx) => {
+            let tr = document.createElement('tr');
+            if (idx === 0 || idx === 1) tr.classList.add('rank-first');
+            else if (idx === 2) tr.classList.add('rank-third');
+            else if (idx >= sorted.length - 3 && sorted.length > 3) tr.classList.add('rank-last');
+
+            let diff = s.goalsFor - s.goalsAgainst;
+
+            tr.innerHTML = `
+                <td><strong>${idx + 1}.</strong></td>
+                <td>${s.name}</td>
+                <td style="text-align: center;">${s.played}</td>
+                <td style="text-align: center;">${s.won}</td>
+                <td style="text-align: center;">${s.draw}</td>
+                <td style="text-align: center;">${s.lost}</td>
+                <td style="text-align: center;">${s.goalsFor}:${s.goalsAgainst}</td>
+                <td style="text-align: center;">${diff > 0 ? '+' : ''}${diff}</td>
+                <td style="text-align: center; font-weight: bold;">${s.points}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderInputForm() {
+        let container = document.getElementById('matchInputsContainer');
+        container.innerHTML = '';
+        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
+
+        if (existingMatches.length === 0) {
+            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem;">Keine Partien für diesen Spieltag eingetragen.</div>`;
+            return;
+        }
+
+        existingMatches.forEach((m, idx) => {
+            let card = document.createElement('div');
+            card.className = 'match-input-card';
+            card.innerHTML = `
+                <div style="font-size: 0.8rem; color: var(--liga2-bright-green); font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                    <span>Partie ${idx + 1}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">${m.date ? m.date.split('-').reverse().join('.') : ''} ${m.time || ''} Uhr</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group form-group-team">
+                        <label>Heim</label>
+                        <span style="font-size: 0.8rem; font-weight: bold;">${m.home}</span>
+                    </div>
+                    <div class="form-group form-group-team">
+                        <label>Gast</label>
+                        <span style="font-size: 0.8rem; font-weight: bold;">${m.away}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Tore Heim</label>
+                        <input type="number" id="hs_${idx}" class="form-control" value="${m.homeScore !== undefined && m.homeScore !== null ? m.homeScore : ''}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Tore Gast</label>
+                        <input type="number" id="as_${idx}" class="form-control" value="${m.awayScore !== undefined && m.awayScore !== null ? m.awayScore : ''}" min="0">
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function saveAllMatches() {
+        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
+        for (let idx = 0; idx < existingMatches.length; idx++) {
+            let hsVal = document.getElementById(`hs_${idx}`).value;
+            let asVal = document.getElementById(`as_${idx}`).value;
+
+            if (hsVal !== '' && asVal !== '') {
+                existingMatches[idx].homeScore = parseInt(hsVal);
+                existingMatches[idx].awayScore = parseInt(asVal);
+            } else {
+                delete existingMatches[idx].homeScore;
+                delete existingMatches[idx].awayScore;
+            }
+        }
+        saveAndSync();
+    }
+
+    function deleteMatchResult(idx) {
+        let existingMatches = leagueData.matches[leagueData.currentMatchday];
+        if (existingMatches && existingMatches[idx]) {
+            delete existingMatches[idx].homeScore;
+            delete existingMatches[idx].awayScore;
+            saveAndSync();
+        }
+    }
+
+    function saveAndSync() {
+        renderAll();
+        saveToCloud();
+    }
+
+    loadFromCloud();
+</script>
+
+</body>
+</html>

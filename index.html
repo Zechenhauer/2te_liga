@@ -827,7 +827,7 @@
         }
     }
 
-    // Lädt Ergebnisse, Spieltag und Torschützen aus Supabase
+    // Verbesserter Cloud-Lader: Gleicht Partien direkt über Teamnamen ab (unabhängig vom Spieltag in der DB)
     async function loadFromCloud() {
         try {
             let { data, error } = await supabaseClient
@@ -846,13 +846,42 @@
                 let resultsSource = cloudPayload.match_results || cloudPayload.matches;
 
                 if (resultsSource) {
+                    // Erstelle eine schnelle Lookup-Map für alle Spiele im lokalen JS-Spielplan nach Team-Paarung
+                    let matchLookup = {};
+                    for (let mDay in leagueData.matches) {
+                        if (Array.isArray(leagueData.matches[mDay])) {
+                            leagueData.matches[mDay].forEach(m => {
+                                let key = `${m.home}__vs__${m.away}`;
+                                matchLookup[key] = m;
+                            });
+                        }
+                    }
+
+                    // Durchsuche alle in der Cloud gespeicherten Spieltage/Einträge
                     for (let mDay in resultsSource) {
-                        if (leagueData.matches[mDay] && Array.isArray(resultsSource[mDay])) {
-                            resultsSource[mDay].forEach((savedM, sIdx) => {
-                                if (leagueData.matches[mDay][sIdx]) {
-                                    if (savedM.homeScore !== undefined) leagueData.matches[mDay][sIdx].homeScore = savedM.homeScore;
-                                    if (savedM.awayScore !== undefined) leagueData.matches[mDay][sIdx].awayScore = savedM.awayScore;
-                                    if (savedM.goal_scorer !== undefined) leagueData.matches[mDay][sIdx].goal_scorer = savedM.goal_scorer;
+                        let sourceList = resultsSource[mDay];
+                        if (Array.isArray(sourceList)) {
+                            sourceList.forEach(savedM => {
+                                // Fall A: Gespeicherter Datensatz enthält direkt die Teamnamen (Modernes Format)
+                                if (savedM.home && savedM.away) {
+                                    let key = `${savedM.home}__vs__${savedM.away}`;
+                                    if (matchLookup[key]) {
+                                        if (savedM.homeScore !== undefined) matchLookup[key].homeScore = savedM.homeScore;
+                                        if (savedM.awayScore !== undefined) matchLookup[key].awayScore = savedM.awayScore;
+                                        if (savedM.goal_scorer !== undefined) matchLookup[key].goal_scorer = savedM.goal_scorer;
+                                    }
+                                } 
+                                // Fall B: Altes Array-Index Format über den Spieltag
+                                else if (leagueData.matches[mDay]) {
+                                    // Wir versuchen zusätzlich, ob im alten Format der Index übereinstimmt
+                                    // (wird hier zusätzlich über Index abgefangen, falls Teams im Array fehlen)
+                                    let idx = sourceList.indexOf(savedM);
+                                    if (idx !== -1 && leagueData.matches[mDay][idx]) {
+                                        let targetMatch = leagueData.matches[mDay][idx];
+                                        if (savedM.homeScore !== undefined) targetMatch.homeScore = savedM.homeScore;
+                                        if (savedM.awayScore !== undefined) targetMatch.awayScore = savedM.awayScore;
+                                        if (savedM.goal_scorer !== undefined) targetMatch.goal_scorer = savedM.goal_scorer;
+                                    }
                                 }
                             });
                         }
@@ -867,13 +896,16 @@
         renderAll();
     }
 
-    // Speichert Ergebnisse, Spieltag und Torschützen in Supabase
+    // Speichert Ergebnisse, Spieltag und Torschützen sauber in Supabase
     async function saveToCloud() {
         try {
             let resultsOnly = {};
             for (let mDay in leagueData.matches) {
                 resultsOnly[mDay] = leagueData.matches[mDay].map(m => {
-                    let res = {};
+                    let res = {
+                        home: m.home,
+                        away: m.away
+                    };
                     if (m.homeScore !== undefined && m.homeScore !== null) res.homeScore = m.homeScore;
                     if (m.awayScore !== undefined && m.awayScore !== null) res.awayScore = m.awayScore;
                     if (m.goal_scorer !== undefined && m.goal_scorer !== null && m.goal_scorer !== "") res.goal_scorer = m.goal_scorer;

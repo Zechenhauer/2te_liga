@@ -224,6 +224,18 @@
             color: #e3b341;
         }
 
+        .team-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .team-logo {
+            width: 22px;
+            height: 22px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
         .admin-toggle-wrapper {
             text-align: right;
             margin-top: 15px;
@@ -404,6 +416,34 @@
     const SUPABASE_URL = 'https://lhusylpjnujlqomougmg.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Exakte Logo-URLs aus dem Supabase Storage Bucket 'logos 2te liga'
+    const teamLogos = {
+        "DSC Arminia Bielefeld": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/arminia-bielefeld.png",
+        "SG Dynamo Dresden": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/dynamo-dresden.png",
+        "Eintracht Braunschweig": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/eintracht-braunschweig.png",
+        "FC Energie Cottbus": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/energie-cottbus.png",
+        "1. FC Heidenheim 1846": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-heidenheim.png",
+        "1. FC Kaiserslautern": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-kaiserslautern.png",
+        "1. FC Nürnberg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-nurnberg.png",
+        "FC St. Pauli": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-st-pauli.png",
+        "Hannover 96": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/hannover-96.png",
+        "Hertha BSC": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/hertha-bsc.png",
+        "Holstein Kiel": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/holstein-kiel.png",
+        "Karlsruher SC": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/karlsruher-sc.png",
+        "1. FC Magdeburg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/magdeburg.png",
+        "SpVgg Greuther Fürth": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/spvgg-greuther-furth.png",
+        "SV Darmstadt 98": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/sv-darmstadt-98.png",
+        "VfL Bochum 1848": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-bochum.png",
+        "VfL Osnabrück": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-osnabruck.png",
+        "VfL Wolfsburg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-wolfsburg.png"
+    };
+
+    function getTeamLogoHtml(teamName) {
+        let logoUrl = teamLogos[teamName] || "";
+        if (!logoUrl) return "";
+        return `<img src="${logoUrl}" alt="${teamName}" class="team-logo" onerror="this.style.display='none'">`;
+    }
 
     const ADMIN_PIN = "1919";
     let isAdmin = false;
@@ -827,7 +867,6 @@
         }
     }
 
-    // Verbesserter Cloud-Lader: Gleicht Partien direkt über Teamnamen ab (unabhängig vom Spieltag in der DB)
     async function loadFromCloud() {
         try {
             let { data, error } = await supabaseClient
@@ -846,7 +885,6 @@
                 let resultsSource = cloudPayload.match_results || cloudPayload.matches;
 
                 if (resultsSource) {
-                    // Erstelle eine schnelle Lookup-Map für alle Spiele im lokalen JS-Spielplan nach Team-Paarung
                     let matchLookup = {};
                     for (let mDay in leagueData.matches) {
                         if (Array.isArray(leagueData.matches[mDay])) {
@@ -857,12 +895,10 @@
                         }
                     }
 
-                    // Durchsuche alle in der Cloud gespeicherten Spieltage/Einträge
                     for (let mDay in resultsSource) {
                         let sourceList = resultsSource[mDay];
                         if (Array.isArray(sourceList)) {
                             sourceList.forEach(savedM => {
-                                // Fall A: Gespeicherter Datensatz enthält direkt die Teamnamen (Modernes Format)
                                 if (savedM.home && savedM.away) {
                                     let key = `${savedM.home}__vs__${savedM.away}`;
                                     if (matchLookup[key]) {
@@ -871,10 +907,7 @@
                                         if (savedM.goal_scorer !== undefined) matchLookup[key].goal_scorer = savedM.goal_scorer;
                                     }
                                 } 
-                                // Fall B: Altes Array-Index Format über den Spieltag
                                 else if (leagueData.matches[mDay]) {
-                                    // Wir versuchen zusätzlich, ob im alten Format der Index übereinstimmt
-                                    // (wird hier zusätzlich über Index abgefangen, falls Teams im Array fehlen)
                                     let idx = sourceList.indexOf(savedM);
                                     if (idx !== -1 && leagueData.matches[mDay][idx]) {
                                         let targetMatch = leagueData.matches[mDay][idx];
@@ -896,7 +929,6 @@
         renderAll();
     }
 
-    // Speichert Ergebnisse, Spieltag und Torschützen sauber in Supabase
     async function saveToCloud() {
         try {
             let resultsOnly = {};
@@ -1023,12 +1055,25 @@
 
             let deleteBtn = isAdmin ? `<button class="btn-danger" onclick="deleteMatchResult(${idx})" title="Ergebnis löschen">✕</button>` : '';
 
+            let homeLogo = getTeamLogoHtml(m.home);
+            let awayLogo = getTeamLogoHtml(m.away);
+
             let tr = document.createElement('tr');
             tr.innerHTML = `
                 <td style="font-size: 0.8rem; color: #ffffff;">${formattedDate}${timeStr}</td>
-                <td style="text-align: right;">${m.home}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                        <span>${m.home}</span>
+                        ${homeLogo}
+                    </div>
+                </td>
                 <td style="text-align: center;">${resultDisplay}</td>
-                <td>${m.away}</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${awayLogo}
+                        <span>${m.away}</span>
+                    </div>
+                </td>
                 <td style="text-align: center;">${deleteBtn}</td>
             `;
             tbody.appendChild(tr);
@@ -1094,10 +1139,16 @@
             else if (idx >= sorted.length - 3 && sorted.length > 3) tr.classList.add('rank-last');
 
             let diff = s.goalsFor - s.goalsAgainst;
+            let logoHtml = getTeamLogoHtml(s.name);
 
             tr.innerHTML = `
                 <td><strong>${idx + 1}.</strong></td>
-                <td>${s.name}</td>
+                <td>
+                    <div class="team-cell">
+                        ${logoHtml}
+                        <span>${s.name}</span>
+                    </div>
+                </td>
                 <td style="text-align: center;">${s.played}</td>
                 <td style="text-align: center;">${s.won}</td>
                 <td style="text-align: center;">${s.draw}</td>

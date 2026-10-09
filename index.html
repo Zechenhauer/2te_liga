@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2. Bundesliga — Spielplan, Tabelle & Statistik 2026/27</title>
+    <title>2. Bundesliga — Spielplan, Tabelle & Live-Ergebnisse 2026/27</title>
     <!-- Supabase Client Bibliothek laden -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -150,40 +150,6 @@
         }
         .matchday-btn:hover { background: var(--liga2-dark); border-color: var(--liga2-green); }
 
-        .live-btn {
-            background: rgba(46, 160, 67, 0.2);
-            border: 1px solid var(--liga2-bright-green);
-            color: var(--liga2-bright-green);
-        }
-        .live-btn:hover { background: rgba(46, 160, 67, 0.35); }
-
-        .live-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(248, 81, 73, 0.15);
-            color: #f85149;
-            border: 1px solid rgba(248, 81, 73, 0.4);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .live-dot {
-            width: 6px;
-            height: 6px;
-            background-color: #f85149;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.4; }
-            100% { transform: scale(0.95); opacity: 1; }
-        }
-
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -224,12 +190,12 @@
             color: #e3b341;
         }
 
-        .team-cell {
+        .team-cell-content {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .team-logo {
+        .team-mini-logo {
             width: 22px;
             height: 22px;
             object-fit: contain;
@@ -272,13 +238,9 @@
         }
         .form-grid {
             display: grid;
-            grid-template-columns: 2fr 2fr repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 8px;
             align-items: end;
-        }
-        @media (max-width: 900px) {
-            .form-grid { grid-template-columns: 1fr 1fr; }
-            .form-grid .form-group-team { grid-column: span 2; }
         }
         .form-group label {
             display: block;
@@ -313,15 +275,6 @@
             transition: background 0.2s;
         }
         .btn:hover { background: var(--liga2-green-hover); }
-        
-        .btn-danger {
-            background: transparent;
-            border: none;
-            color: #f85149;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 1rem;
-        }
     </style>
 </head>
 <body>
@@ -330,24 +283,21 @@
     <div class="title-row">
         <h2>2. <span>Bundesliga</span></h2>
     </div>
-    <div class="subtitle" id="leagueSubtitle">Saison 2026/27</div>
+    <div class="subtitle" id="leagueSubtitle">Saison 2026/27 & Live-Daten</div>
     <div class="meta-info">
         <span>⚡ Web-App & Management: Jürgen Schützendorf</span>
-        <span class="supabase-badge">● Mit Supabase verbunden (2. Liga)</span>
+        <span class="supabase-badge" id="cloudStatusBadge">● OpenLigaDB & Cloud aktiv</span>
     </div>
 
     <!-- SPIELTAGS-TABELLE -->
     <div class="section-box">
         <div class="section-header">
             <span id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</span>
-            <button class="header-action-btn" onclick="loadFromCloud()">🔄 Aktualisieren</button>
+            <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
         </div>
         <div class="matchday-controls">
             <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger</button>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <strong id="matchdayDisplay" style="color: var(--liga2-bright-green); font-size: 1.1rem;">Spieltag 1</strong>
-                <button class="matchday-btn live-btn" onclick="jumpToLiveMatchday()" title="Zum aktuellen Spieltag springen">🔴 Live-Spieltag</button>
-            </div>
+            <strong id="matchdayDisplay" style="color: var(--liga2-bright-green); font-size: 1.1rem;">Spieltag 1</strong>
             <button class="matchday-btn" onclick="changeMatchday(1)">Nächster ▶</button>
         </div>
         <div class="table-container">
@@ -356,12 +306,14 @@
                     <tr>
                         <th style="width: 130px; color: #ffffff;">Termin</th>
                         <th style="text-align: right;">Heimmannschaft</th>
-                        <th style="text-align: center; width: 140px;">Ergebnis / Status</th>
+                        <th style="text-align: center; width: 180px;">Ergebnis / Status</th>
                         <th>Gastmannschaft</th>
                         <th style="width: 40px; text-align: center;"></th>
                     </tr>
                 </thead>
-                <tbody id="matchdayTableBody"></tbody>
+                <tbody id="matchdayTableBody">
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Lade Spielplan von OpenLigaDB...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -370,7 +322,7 @@
     <div class="section-box">
         <div class="section-header">
             <span>2. Bundesliga-Tabelle (Gesamt)</span>
-            <button class="header-action-btn" onclick="loadFromCloud()">🔄 Aktualisieren</button>
+            <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
         </div>
         <div class="table-container">
             <table>
@@ -387,7 +339,9 @@
                         <th style="text-align: center;">Punkte</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody"></tbody>
+                <tbody id="tableBody">
+                    <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">Lade Tabelle...</td></tr>
+                </tbody>
             </table>
         </div>
         <div style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted);">
@@ -400,11 +354,11 @@
     <!-- ADMIN BEREICH -->
     <div class="admin-card" id="adminCard">
         <div style="font-weight: bold; color: var(--liga2-bright-green); margin-bottom: 12px; text-transform: uppercase; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
-            <span>✏️ Ergebnisse & Torschützen für <span id="adminMatchdayLabel">Spieltag 1</span> erfassen</span>
+            <span>✏️ Manuelle Torschützen für <span id="adminMatchdayLabel">Spieltag 1</span> erfassen</span>
             <span style="font-size: 0.7rem; color: #3fb950;">● Admin-Modus Aktiv</span>
         </div>
         <div id="matchInputsContainer"></div>
-        <button class="btn" onclick="saveAllMatches()">Alle Ergebnisse & Torschützen speichern</button>
+        <button class="btn" onclick="saveAllScorers()">Manuelle Torschützen speichern</button>
     </div>
 
     <div class="admin-toggle-wrapper">
@@ -417,437 +371,13 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_yXEueWILvAq-Vm2VfTuYyg_BIQeE1KK';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Exakte Logo-URLs aus dem Supabase Storage Bucket 'logos 2te liga'
-    const teamLogos = {
-        "DSC Arminia Bielefeld": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/arminia-bielefeld.png",
-        "SG Dynamo Dresden": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/dynamo-dresden.png",
-        "Eintracht Braunschweig": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/eintracht-braunschweig.png",
-        "FC Energie Cottbus": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/energie-cottbus.png",
-        "1. FC Heidenheim 1846": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-heidenheim.png",
-        "1. FC Kaiserslautern": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-kaiserslautern.png",
-        "1. FC Nürnberg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-nurnberg.png",
-        "FC St. Pauli": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/fc-st-pauli.png",
-        "Hannover 96": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/hannover-96.png",
-        "Hertha BSC": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/hertha-bsc.png",
-        "Holstein Kiel": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/holstein-kiel.png",
-        "Karlsruher SC": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/karlsruher-sc.png",
-        "1. FC Magdeburg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/magdeburg.png",
-        "SpVgg Greuther Fürth": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/spvgg-greuther-furth.png",
-        "SV Darmstadt 98": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/sv-darmstadt-98.png",
-        "VfL Bochum 1848": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-bochum.png",
-        "VfL Osnabrück": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-osnabruck.png",
-        "VfL Wolfsburg": "https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/vfl-wolfsburg.png"
-    };
-
-    function getTeamLogoHtml(teamName) {
-        let logoUrl = teamLogos[teamName] || "";
-        if (!logoUrl) return "";
-        return `<img src="${logoUrl}" alt="${teamName}" class="team-logo" onerror="this.style.display='none'">`;
-    }
-
     const ADMIN_PIN = "1919";
     let isAdmin = false;
 
-    // Fester, unveränderlicher Standard-Spielplan für alle 34 Spieltage der 2. Bundesliga
-    let leagueData = {
-        currentMatchday: 1,
-        teams: [
-            "VfL Wolfsburg",
-            "1. FC Heidenheim 1846",
-            "FC St. Pauli",
-            "Hannover 96",
-            "SV Darmstadt 98",
-            "1. FC Kaiserslautern",
-            "Hertha BSC",
-            "1. FC Nürnberg",
-            "Karlsruher SC",
-            "SpVgg Greuther Fürth",
-            "VfL Bochum 1848",
-            "Holstein Kiel",
-            "Eintracht Braunschweig",
-            "SG Dynamo Dresden",
-            "1. FC Magdeburg",
-            "DSC Arminia Bielefeld",
-            "VfL Osnabrück",
-            "FC Energie Cottbus"
-        ],
-        matches: {
-            "1": [
-                { "home": "VfL Bochum 1848", "away": "Hertha BSC", "date": "2026-08-07", "time": "20:30" },
-                { "home": "VfL Wolfsburg", "away": "1. FC Kaiserslautern", "date": "2026-08-08", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "SpVgg Greuther Fürth", "date": "2026-08-08", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "VfL Osnabrück", "date": "2026-08-08", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "Holstein Kiel", "date": "2026-08-08", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "SG Dynamo Dresden", "date": "2026-08-08", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "DSC Arminia Bielefeld", "date": "2026-08-08", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "Eintracht Braunschweig", "date": "2026-08-08", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "Hannover 96", "date": "2026-08-08", "time": "15:30" }
-            ],
-            "2": [
-                { "home": "Hannover 96", "away": "VfL Wolfsburg", "date": "2026-08-14", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "Karlsruher SC", "date": "2026-08-14", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "1. FC Heidenheim 1846", "date": "2026-08-14", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "SV Darmstadt 98", "date": "2026-08-14", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "FC St. Pauli", "date": "2026-08-14", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "FC Energie Cottbus", "date": "2026-08-14", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "VfL Bochum 1848", "date": "2026-08-14", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "1. FC Nürnberg", "date": "2026-08-14", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "1. FC Magdeburg", "date": "2026-08-14", "time": "15:30" }
-            ],
-            "3": [
-                { "home": "FC St. Pauli", "away": "1. FC Kaiserslautern", "date": "2026-08-28", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "SG Dynamo Dresden", "date": "2026-08-28", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "Hannover 96", "date": "2026-08-28", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "DSC Arminia Bielefeld", "date": "2026-08-28", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "VfL Osnabrück", "date": "2026-08-28", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "VfL Wolfsburg", "date": "2026-08-28", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "Holstein Kiel", "date": "2026-08-28", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "Hertha BSC", "date": "2026-08-28", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "SpVgg Greuther Fürth", "date": "2026-08-28", "time": "15:30" }
-            ],
-            "4": [
-                { "home": "VfL Wolfsburg", "away": "FC Energie Cottbus", "date": "2026-09-04", "time": "15:30" },
-                { "home": "Hannover 96", "away": "Karlsruher SC", "date": "2026-09-04", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "SV Darmstadt 98", "date": "2026-09-04", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "1. FC Magdeburg", "date": "2026-09-04", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "VfL Bochum 1848", "date": "2026-09-04", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "1. FC Nürnberg", "date": "2026-09-04", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "FC St. Pauli", "date": "2026-09-04", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "1. FC Heidenheim 1846", "date": "2026-09-04", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "Eintracht Braunschweig", "date": "2026-09-04", "time": "15:30" }
-            ],
-            "5": [
-                { "home": "FC St. Pauli", "away": "VfL Wolfsburg", "date": "2026-09-11", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "Holstein Kiel", "date": "2026-09-11", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "DSC Arminia Bielefeld", "date": "2026-09-11", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "Hannover 96", "date": "2026-09-11", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "SpVgg Greuther Fürth", "date": "2026-09-11", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "FC Energie Cottbus", "date": "2026-09-11", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "1. FC Kaiserslautern", "date": "2026-09-11", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "SG Dynamo Dresden", "date": "2026-09-11", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "Hertha BSC", "date": "2026-09-11", "time": "15:30" }
-            ],
-            "6": [
-                { "home": "VfL Wolfsburg", "away": "SV Darmstadt 98", "date": "2026-09-18", "time": "18:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "1. FC Magdeburg", "date": "2026-09-18", "time": "18:30" },
-                { "home": "1. FC Kaiserslautern", "away": "Eintracht Braunschweig", "date": "2026-09-19", "time": "13:00" },
-                { "home": "Karlsruher SC", "away": "1. FC Nürnberg", "date": "2026-09-19", "time": "13:00" },
-                { "home": "Holstein Kiel", "away": "VfL Osnabrück", "date": "2026-09-19", "time": "13:00" },
-                { "home": "SG Dynamo Dresden", "away": "Hertha BSC", "date": "2026-09-19", "time": "20:30" },
-                { "home": "Hannover 96", "away": "VfL Bochum 1848", "date": "2026-09-20", "time": "13:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "1. FC Heidenheim 1846", "date": "2026-09-20", "time": "13:30" },
-                { "home": "FC Energie Cottbus", "away": "FC St. Pauli", "date": "2026-09-20", "time": "13:30" }
-            ],
-            "7": [
-                { "home": "1. FC Heidenheim 1846", "away": "1. FC Kaiserslautern", "date": "2026-10-09", "time": "18:30" },
-                { "home": "Eintracht Braunschweig", "away": "Holstein Kiel", "date": "2026-10-09", "time": "18:30" },
-                { "home": "SV Darmstadt 98", "away": "FC Energie Cottbus", "date": "2026-10-10", "time": "13:00" },
-                { "home": "1. FC Magdeburg", "away": "Hannover 96", "date": "2026-10-10", "time": "13:00" },
-                { "home": "VfL Osnabrück", "away": "SG Dynamo Dresden", "date": "2026-10-10", "time": "13:00" },
-                { "home": "1. FC Nürnberg", "away": "VfL Wolfsburg", "date": "2026-10-10", "time": "20:30" },
-                { "home": "FC St. Pauli", "away": "Karlsruher SC", "date": "2026-10-11", "time": "13:30" },
-                { "home": "Hertha BSC", "away": "SpVgg Greuther Fürth", "date": "2026-10-11", "time": "13:30" },
-                { "home": "VfL Bochum 1848", "away": "DSC Arminia Bielefeld", "date": "2026-10-11", "time": "13:30" }
-            ],
-            "8": [
-                { "home": "Holstein Kiel", "away": "Hertha BSC", "date": "2026-10-16", "time": "18:30" },
-                { "home": "FC Energie Cottbus", "away": "1. FC Nürnberg", "date": "2026-10-16", "time": "18:30" },
-                { "home": "VfL Wolfsburg", "away": "1. FC Heidenheim 1846", "date": "2026-10-17", "time": "13:00" },
-                { "home": "1. FC Kaiserslautern", "away": "VfL Bochum 1848", "date": "2026-10-17", "time": "13:00" },
-                { "home": "SpVgg Greuther Fürth", "away": "Eintracht Braunschweig", "date": "2026-10-17", "time": "13:00" },
-                { "home": "Hannover 96", "away": "FC St. Pauli", "date": "2026-10-17", "time": "20:30" },
-                { "home": "Karlsruher SC", "away": "SV Darmstadt 98", "date": "2026-10-18", "time": "13:30" },
-                { "home": "SG Dynamo Dresden", "away": "1. FC Magdeburg", "date": "2026-10-18", "time": "13:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "VfL Osnabrück", "date": "2026-10-18", "time": "13:30" }
-            ],
-            "9": [
-                { "home": "SV Darmstadt 98", "away": "FC St. Pauli", "date": "2026-10-23", "time": "18:30" },
-                { "home": "VfL Bochum 1848", "away": "VfL Wolfsburg", "date": "2026-10-23", "time": "18:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "FC Energie Cottbus", "date": "2026-10-24", "time": "13:00" },
-                { "home": "Hertha BSC", "away": "DSC Arminia Bielefeld", "date": "2026-10-24", "time": "13:00" },
-                { "home": "1. FC Magdeburg", "away": "Karlsruher SC", "date": "2026-10-24", "time": "13:00" },
-                { "home": "1. FC Nürnberg", "away": "1. FC Kaiserslautern", "date": "2026-10-24", "time": "20:30" },
-                { "home": "Holstein Kiel", "away": "SG Dynamo Dresden", "date": "2026-10-25", "time": "13:30" },
-                { "home": "Eintracht Braunschweig", "away": "Hannover 96", "date": "2026-10-25", "time": "13:30" },
-                { "home": "VfL Osnabrück", "away": "SpVgg Greuther Fürth", "date": "2026-10-25", "time": "13:30" }
-            ],
-            "10": [
-                { "home": "DSC Arminia Bielefeld", "away": "Eintracht Braunschweig", "date": "2026-10-30", "time": "18:30" },
-                { "home": "FC Energie Cottbus", "away": "VfL Bochum 1848", "date": "2026-10-30", "time": "18:30" },
-                { "home": "VfL Wolfsburg", "away": "VfL Osnabrück", "date": "2026-10-31", "time": "13:00" },
-                { "home": "SV Darmstadt 98", "away": "1. FC Magdeburg", "date": "2026-10-31", "time": "13:00" },
-                { "home": "1. FC Kaiserslautern", "away": "Hertha BSC", "date": "2026-10-31", "time": "13:00" },
-                { "home": "Karlsruher SC", "away": "1. FC Heidenheim 1846", "date": "2026-10-31", "time": "20:30" },
-                { "home": "FC St. Pauli", "away": "1. FC Nürnberg", "date": "2026-11-01", "time": "13:30" },
-                { "home": "Hannover 96", "away": "SG Dynamo Dresden", "date": "2026-11-01", "time": "13:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "Holstein Kiel", "date": "2026-11-01", "time": "13:30" }
-            ],
-            "11": [
-                { "home": "SG Dynamo Dresden", "away": "SpVgg Greuther Fürth", "date": "2026-11-06", "time": "18:30" },
-                { "home": "Eintracht Braunschweig", "away": "FC Energie Cottbus", "date": "2026-11-06", "time": "18:30" },
-                { "home": "1. FC Nürnberg", "away": "SV Darmstadt 98", "date": "2026-11-07", "time": "13:00" },
-                { "home": "Holstein Kiel", "away": "DSC Arminia Bielefeld", "date": "2026-11-07", "time": "13:00" },
-                { "home": "VfL Osnabrück", "away": "1. FC Kaiserslautern", "date": "2026-11-07", "time": "13:00" },
-                { "home": "Hertha BSC", "away": "VfL Wolfsburg", "date": "2026-11-07", "time": "20:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "Hannover 96", "date": "2026-11-08", "time": "13:30" },
-                { "home": "VfL Bochum 1848", "away": "Karlsruher SC", "date": "2026-11-08", "time": "13:30" },
-                { "home": "1. FC Magdeburg", "away": "FC St. Pauli", "date": "2026-11-08", "time": "13:30" }
-            ],
-            "12": [
-                { "home": "DSC Arminia Bielefeld", "away": "1. FC Magdeburg", "date": "2026-11-20", "time": "18:30" },
-                { "home": "SV Darmstadt 98", "away": "1. FC Heidenheim 1846", "date": "2026-11-20", "time": "18:30" },
-                { "home": "Hannover 96", "away": "SpVgg Greuther Fürth", "date": "2026-11-21", "time": "13:00" },
-                { "home": "1. FC Nürnberg", "away": "Eintracht Braunschweig", "date": "2026-11-21", "time": "13:00" },
-                { "home": "VfL Wolfsburg", "away": "Holstein Kiel", "date": "2026-11-21", "time": "13:00" },
-                { "home": "FC St. Pauli", "away": "VfL Bochum 1848", "date": "2026-11-21", "time": "20:30" },
-                { "home": "FC Energie Cottbus", "away": "Hertha BSC", "date": "2026-11-22", "time": "13:30" },
-                { "home": "Karlsruher SC", "away": "VfL Osnabrück", "date": "2026-11-22", "time": "13:30" },
-                { "home": "1. FC Kaiserslautern", "away": "SG Dynamo Dresden", "date": "2026-11-22", "time": "13:30" }
-            ],
-            "13": [
-                { "home": "1. FC Heidenheim 1846", "away": "1. FC Nürnberg", "date": "2026-11-27", "time": "18:30" },
-                { "home": "VfL Bochum 1848", "away": "SV Darmstadt 98", "date": "2026-11-27", "time": "18:30" },
-                { "home": "Hertha BSC", "away": "Karlsruher SC", "date": "2026-11-28", "time": "13:00" },
-                { "home": "Holstein Kiel", "away": "1. FC Kaiserslautern", "date": "2026-11-28", "time": "13:00" },
-                { "home": "SG Dynamo Dresden", "away": "FC St. Pauli", "date": "2026-11-28", "time": "13:00" },
-                { "home": "VfL Osnabrück", "away": "Hannover 96", "date": "2026-11-28", "time": "20:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "DSC Arminia Bielefeld", "date": "2026-11-29", "time": "13:30" },
-                { "home": "Eintracht Braunschweig", "away": "VfL Wolfsburg", "date": "2026-11-29", "time": "13:30" },
-                { "home": "1. FC Magdeburg", "away": "FC Energie Cottbus", "date": "2026-11-29", "time": "13:30" }
-            ],
-            "14": [
-                { "home": "VfL Wolfsburg", "away": "1. FC Magdeburg", "date": "2026-12-06", "time": "13:30" },
-                { "home": "FC Energie Cottbus", "away": "VfL Osnabrück", "date": "2026-12-06", "time": "13:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "SG Dynamo Dresden", "date": "2026-12-06", "time": "13:30" },
-                { "home": "Hannover 96", "away": "Hertha BSC", "date": "2026-12-06", "time": "13:30" },
-                { "home": "SV Darmstadt 98", "away": "Eintracht Braunschweig", "date": "2026-12-06", "time": "13:30" },
-                { "home": "Karlsruher SC", "away": "Holstein Kiel", "date": "2026-12-06", "time": "13:30" },
-                { "home": "1. FC Kaiserslautern", "away": "SpVgg Greuther Fürth", "date": "2026-12-06", "time": "13:30" },
-                { "home": "FC St. Pauli", "away": "1. FC Heidenheim 1846", "date": "2026-12-06", "time": "13:30" },
-                { "home": "1. FC Nürnberg", "away": "VfL Bochum 1848", "date": "2026-12-06", "time": "13:30" }
-            ],
-            "15": [
-                { "home": "Hertha BSC", "away": "SV Darmstadt 98", "date": "2026-12-11", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "1. FC Heidenheim 1846", "date": "2026-12-11", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "FC Energie Cottbus", "date": "2026-12-11", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "Hannover 96", "date": "2026-12-11", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "1. FC Kaiserslautern", "date": "2026-12-11", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "1. FC Nürnberg", "date": "2026-12-11", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "Karlsruher SC", "date": "2026-12-11", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "VfL Wolfsburg", "date": "2026-12-11", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "FC St. Pauli", "date": "2026-12-11", "time": "15:30" }
-            ],
-            "16": [
-                { "home": "VfL Wolfsburg", "away": "DSC Arminia Bielefeld", "date": "2026-12-18", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "Hertha BSC", "date": "2026-12-18", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "Eintracht Braunschweig", "date": "2026-12-18", "time": "15:30" },
-                { "home": "Hannover 96", "away": "1. FC Kaiserslautern", "date": "2026-12-18", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "SpVgg Greuther Fürth", "date": "2026-12-18", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "VfL Osnabrück", "date": "2026-12-18", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "1. FC Magdeburg", "date": "2026-12-18", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "SG Dynamo Dresden", "date": "2026-12-18", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "Holstein Kiel", "date": "2026-12-18", "time": "15:30" }
-            ],
-            "17": [
-                { "home": "1. FC Kaiserslautern", "away": "FC Energie Cottbus", "date": "2027-01-15", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "1. FC Nürnberg", "date": "2027-01-15", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "VfL Wolfsburg", "date": "2027-01-15", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "VfL Bochum 1848", "date": "2027-01-15", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "Hannover 96", "date": "2027-01-15", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "1. FC Heidenheim 1846", "date": "2027-01-15", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "FC St. Pauli", "date": "2027-01-15", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "Karlsruher SC", "date": "2027-01-15", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "SV Darmstadt 98", "date": "2027-01-15", "time": "15:30" }
-            ],
-            "18": [
-                { "home": "Hannover 96", "away": "FC Energie Cottbus", "date": "2027-01-22", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "VfL Wolfsburg", "date": "2027-01-22", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "VfL Bochum 1848", "date": "2027-01-22", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "1. FC Nürnberg", "date": "2027-01-22", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "SV Darmstadt 98", "date": "2027-01-22", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "Karlsruher SC", "date": "2027-01-22", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "1. FC Magdeburg", "date": "2027-01-22", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "FC St. Pauli", "date": "2027-01-22", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "1. FC Heidenheim 1846", "date": "2027-01-22", "time": "15:30" }
-            ],
-            "19": [
-                { "home": "VfL Wolfsburg", "away": "Hannover 96", "date": "2027-01-29", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "Holstein Kiel", "date": "2027-01-29", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "Hertha BSC", "date": "2027-01-29", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "SG Dynamo Dresden", "date": "2027-01-29", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "SpVgg Greuther Fürth", "date": "2027-01-29", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "Eintracht Braunschweig", "date": "2027-01-29", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "1. FC Kaiserslautern", "date": "2027-01-29", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "VfL Osnabrück", "date": "2027-01-29", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "DSC Arminia Bielefeld", "date": "2027-01-29", "time": "15:30" }
-            ],
-            "20": [
-                { "home": "VfL Wolfsburg", "away": "Karlsruher SC", "date": "2027-02-05", "time": "15:30" },
-                { "home": "Hannover 96", "away": "SV Darmstadt 98", "date": "2027-02-05", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "FC St. Pauli", "date": "2027-02-05", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "Eintracht Braunschweig", "date": "2027-02-05", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "1. FC Heidenheim 1846", "date": "2027-02-05", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "1. FC Magdeburg", "date": "2027-02-05", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "1. FC Nürnberg", "date": "2027-02-05", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "FC Energie Cottbus", "date": "2027-02-05", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "VfL Bochum 1848", "date": "2027-02-05", "time": "15:30" }
-            ],
-            "21": [
-                { "home": "FC St. Pauli", "away": "DSC Arminia Bielefeld", "date": "2027-02-12", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "SpVgg Greuther Fürth", "date": "2027-02-12", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "1. FC Kaiserslautern", "date": "2027-02-12", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "Holstein Kiel", "date": "2027-02-12", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "SG Dynamo Dresden", "date": "2027-02-12", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "Hannover 96", "date": "2027-02-12", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "Hertha BSC", "date": "2027-02-12", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "VfL Osnabrück", "date": "2027-02-12", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "VfL Wolfsburg", "date": "2027-02-12", "time": "15:30" }
-            ],
-            "22": [
-                { "home": "VfL Wolfsburg", "away": "FC St. Pauli", "date": "2027-02-19", "time": "15:30" },
-                { "home": "Hannover 96", "away": "1. FC Nürnberg", "date": "2027-02-19", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "1. FC Magdeburg", "date": "2027-02-19", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "VfL Osnabrück", "date": "2027-02-19", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "Eintracht Braunschweig", "date": "2027-02-19", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "1. FC Heidenheim 1846", "date": "2027-02-19", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "SV Darmstadt 98", "date": "2027-02-19", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "VfL Bochum 1848", "date": "2027-02-19", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "Karlsruher SC", "date": "2027-02-19", "time": "15:30" }
-            ],
-            "23": [
-                { "home": "FC St. Pauli", "away": "FC Energie Cottbus", "date": "2027-02-26", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "DSC Arminia Bielefeld", "date": "2027-02-26", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "VfL Wolfsburg", "date": "2027-02-26", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "SG Dynamo Dresden", "date": "2027-02-26", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "Karlsruher SC", "date": "2027-02-26", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "Hannover 96", "date": "2027-02-26", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "SpVgg Greuther Fürth", "date": "2027-02-26", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "1. FC Kaiserslautern", "date": "2027-02-26", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "Holstein Kiel", "date": "2027-02-26", "time": "15:30" }
-            ],
-            "24": [
-                { "home": "VfL Wolfsburg", "away": "1. FC Nürnberg", "date": "2027-03-02", "time": "15:30" },
-                { "home": "Hannover 96", "away": "1. FC Magdeburg", "date": "2027-03-02", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "1. FC Heidenheim 1846", "date": "2027-03-02", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "FC St. Pauli", "date": "2027-03-02", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "VfL Osnabrück", "date": "2027-03-02", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "Eintracht Braunschweig", "date": "2027-03-02", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "VfL Bochum 1848", "date": "2027-03-02", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "Hertha BSC", "date": "2027-03-02", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "SV Darmstadt 98", "date": "2027-03-02", "time": "15:30" }
-            ],
-            "25": [
-                { "home": "FC St. Pauli", "away": "Hannover 96", "date": "2027-03-05", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "VfL Wolfsburg", "date": "2027-03-05", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "Karlsruher SC", "date": "2027-03-05", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "Holstein Kiel", "date": "2027-03-05", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "FC Energie Cottbus", "date": "2027-03-05", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "1. FC Kaiserslautern", "date": "2027-03-05", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "SG Dynamo Dresden", "date": "2027-03-05", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "SpVgg Greuther Fürth", "date": "2027-03-05", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "DSC Arminia Bielefeld", "date": "2027-03-05", "time": "15:30" }
-            ],
-            "26": [
-                { "home": "VfL Wolfsburg", "away": "VfL Bochum 1848", "date": "2027-03-12", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "SV Darmstadt 98", "date": "2027-03-12", "time": "15:30" },
-                { "home": "Hannover 96", "away": "Eintracht Braunschweig", "date": "2027-03-12", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "1. FC Nürnberg", "date": "2027-03-12", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "1. FC Magdeburg", "date": "2027-03-12", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "Holstein Kiel", "date": "2027-03-12", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "Hertha BSC", "date": "2027-03-12", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "VfL Osnabrück", "date": "2027-03-12", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "1. FC Heidenheim 1846", "date": "2027-03-12", "time": "15:30" }
-            ],
-            "27": [
-                { "home": "1. FC Heidenheim 1846", "away": "Karlsruher SC", "date": "2027-03-19", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "1. FC Kaiserslautern", "date": "2027-03-19", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "FC St. Pauli", "date": "2027-03-19", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "FC Energie Cottbus", "date": "2027-03-19", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "Hannover 96", "date": "2027-03-19", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "SpVgg Greuther Fürth", "date": "2027-03-19", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "SV Darmstadt 98", "date": "2027-03-19", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "DSC Arminia Bielefeld", "date": "2027-03-19", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "VfL Wolfsburg", "date": "2027-03-19", "time": "15:30" }
-            ],
-            "28": [
-                { "home": "VfL Wolfsburg", "away": "Hertha BSC", "date": "2027-04-02", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "1. FC Magdeburg", "date": "2027-04-02", "time": "15:30" },
-                { "home": "Hannover 96", "away": "1. FC Heidenheim 1846", "date": "2027-04-02", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "1. FC Nürnberg", "date": "2027-04-02", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "VfL Osnabrück", "date": "2027-04-02", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "VfL Bochum 1848", "date": "2027-04-02", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "Holstein Kiel", "date": "2027-04-02", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "SG Dynamo Dresden", "date": "2027-04-02", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "Eintracht Braunschweig", "date": "2027-04-02", "time": "15:30" }
-            ],
-            "29": [
-                { "home": "1. FC Heidenheim 1846", "away": "SV Darmstadt 98", "date": "2027-04-09", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "FC Energie Cottbus", "date": "2027-04-09", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "FC St. Pauli", "date": "2027-04-09", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "1. FC Kaiserslautern", "date": "2027-04-09", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "VfL Wolfsburg", "date": "2027-04-09", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "DSC Arminia Bielefeld", "date": "2027-04-09", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "1. FC Nürnberg", "date": "2027-04-09", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "Hannover 96", "date": "2027-04-09", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "Karlsruher SC", "date": "2027-04-09", "time": "15:30" }
-            ],
-            "30": [
-                { "home": "VfL Wolfsburg", "away": "Eintracht Braunschweig", "date": "2027-04-16", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "SG Dynamo Dresden", "date": "2027-04-16", "time": "15:30" },
-                { "home": "Hannover 96", "away": "VfL Osnabrück", "date": "2027-04-16", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "VfL Bochum 1848", "date": "2027-04-16", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "Holstein Kiel", "date": "2027-04-16", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "1. FC Heidenheim 1846", "date": "2027-04-16", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "Hertha BSC", "date": "2027-04-16", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "SpVgg Greuther Fürth", "date": "2027-04-16", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "1. FC Magdeburg", "date": "2027-04-16", "time": "15:30" }
-            ],
-            "31": [
-                { "home": "1. FC Heidenheim 1846", "away": "FC St. Pauli", "date": "2027-04-23", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "Hannover 96", "date": "2027-04-23", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "1. FC Nürnberg", "date": "2027-04-23", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "DSC Arminia Bielefeld", "date": "2027-04-23", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "Karlsruher SC", "date": "2027-04-23", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "VfL Wolfsburg", "date": "2027-04-23", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "SV Darmstadt 98", "date": "2027-04-23", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "1. FC Kaiserslautern", "date": "2027-04-23", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "FC Energie Cottbus", "date": "2027-04-23", "time": "15:30" }
-            ],
-            "32": [
-                { "home": "VfL Wolfsburg", "away": "SpVgg Greuther Fürth", "date": "2027-05-07", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "VfL Osnabrück", "date": "2027-05-07", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "VfL Bochum 1848", "date": "2027-05-07", "time": "15:30" },
-                { "home": "Hannover 96", "away": "Holstein Kiel", "date": "2027-05-07", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "Hertha BSC", "date": "2027-05-07", "time": "15:30" },
-                { "home": "1. FC Kaiserslautern", "away": "DSC Arminia Bielefeld", "date": "2027-05-07", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "1. FC Magdeburg", "date": "2027-05-07", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "Eintracht Braunschweig", "date": "2027-05-07", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "SG Dynamo Dresden", "date": "2027-05-07", "time": "15:30" }
-            ],
-            "33": [
-                { "home": "1. FC Kaiserslautern", "away": "Hannover 96", "date": "2027-05-14", "time": "15:30" },
-                { "home": "Hertha BSC", "away": "FC St. Pauli", "date": "2027-05-14", "time": "15:30" },
-                { "home": "SG Dynamo Dresden", "away": "Karlsruher SC", "date": "2027-05-14", "time": "15:30" },
-                { "home": "Holstein Kiel", "away": "FC Energie Cottbus", "date": "2027-05-14", "time": "15:30" },
-                { "home": "DSC Arminia Bielefeld", "away": "VfL Wolfsburg", "date": "2027-05-14", "time": "15:30" },
-                { "home": "1. FC Magdeburg", "away": "VfL Bochum 1848", "date": "2027-05-14", "time": "15:30" },
-                { "home": "Eintracht Braunschweig", "away": "1. FC Heidenheim 1846", "date": "2027-05-14", "time": "15:30" },
-                { "home": "SpVgg Greuther Fürth", "away": "SV Darmstadt 98", "date": "2027-05-14", "time": "15:30" },
-                { "home": "VfL Osnabrück", "away": "1. FC Nürnberg", "date": "2027-05-14", "time": "15:30" }
-            ],
-            "34": [
-                { "home": "VfL Wolfsburg", "away": "SG Dynamo Dresden", "date": "2027-05-23", "time": "15:30" },
-                { "home": "FC St. Pauli", "away": "Eintracht Braunschweig", "date": "2027-05-23", "time": "15:30" },
-                { "home": "1. FC Heidenheim 1846", "away": "1. FC Magdeburg", "date": "2027-05-23", "time": "15:30" },
-                { "home": "Hannover 96", "away": "DSC Arminia Bielefeld", "date": "2027-05-23", "time": "15:30" },
-                { "home": "SV Darmstadt 98", "away": "VfL Osnabrück", "date": "2027-05-23", "time": "15:30" },
-                { "home": "1. FC Nürnberg", "away": "Hertha BSC", "date": "2027-05-23", "time": "15:30" },
-                { "home": "VfL Bochum 1848", "away": "Holstein Kiel", "date": "2027-05-23", "time": "15:30" },
-                { "home": "Karlsruher SC", "away": "SpVgg Greuther Fürth", "date": "2027-05-23", "time": "15:30" },
-                { "home": "FC Energie Cottbus", "away": "1. FC Kaiserslautern", "date": "2027-05-23", "time": "15:30" }
-            ]
-        }
-    };
+    let teamLogos = {};
+    let openLigaMatches = {};
+    let cloudScorers = {};
+    let currentMatchday = parseInt(localStorage.getItem('bundesliga2_current_matchday')) || 6;
 
     function toggleAdminMode() {
         const adminCard = document.getElementById('adminCard');
@@ -867,214 +397,175 @@
         }
     }
 
-    async function loadFromCloud() {
+    async function loadFromCloud(showAlert = false) {
         try {
-            let { data, error } = await supabaseClient
-                .from('bundesliga2_2627')
-                .select('payload')
-                .eq('id', 'season_data')
-                .single();
+            let [matchesRes, logosRes] = await Promise.all([
+                supabaseClient.from('bundesliga2_spiele').select('*'),
+                supabaseClient.from('bundesliga2_vereins_logos').select('*').catch(() => ({ data: [] }))
+            ]);
 
-            if (data && data.payload) {
-                let cloudPayload = data.payload;
-                
-                if (cloudPayload.currentMatchday) {
-                    leagueData.currentMatchday = cloudPayload.currentMatchday;
-                }
-
-                let resultsSource = cloudPayload.match_results || cloudPayload.matches;
-
-                if (resultsSource) {
-                    let matchLookup = {};
-                    for (let mDay in leagueData.matches) {
-                        if (Array.isArray(leagueData.matches[mDay])) {
-                            leagueData.matches[mDay].forEach(m => {
-                                let key = `${m.home}__vs__${m.away}`;
-                                matchLookup[key] = m;
-                            });
-                        }
+            cloudScorers = {};
+            if (matchesRes.data && Array.isArray(matchesRes.data)) {
+                matchesRes.data.forEach(row => {
+                    if (row.match_id && row.goal_scorer) {
+                        cloudScorers[row.match_id] = row.goal_scorer;
                     }
-
-                    for (let mDay in resultsSource) {
-                        let sourceList = resultsSource[mDay];
-                        if (Array.isArray(sourceList)) {
-                            sourceList.forEach(savedM => {
-                                if (savedM.home && savedM.away) {
-                                    let key = `${savedM.home}__vs__${savedM.away}`;
-                                    if (matchLookup[key]) {
-                                        if (savedM.homeScore !== undefined) matchLookup[key].homeScore = savedM.homeScore;
-                                        if (savedM.awayScore !== undefined) matchLookup[key].awayScore = savedM.awayScore;
-                                        if (savedM.goal_scorer !== undefined) matchLookup[key].goal_scorer = savedM.goal_scorer;
-                                    }
-                                } 
-                                else if (leagueData.matches[mDay]) {
-                                    let idx = sourceList.indexOf(savedM);
-                                    if (idx !== -1 && leagueData.matches[mDay][idx]) {
-                                        let targetMatch = leagueData.matches[mDay][idx];
-                                        if (savedM.homeScore !== undefined) targetMatch.homeScore = savedM.homeScore;
-                                        if (savedM.awayScore !== undefined) targetMatch.awayScore = savedM.awayScore;
-                                        if (savedM.goal_scorer !== undefined) targetMatch.goal_scorer = savedM.goal_scorer;
-                                    }
-                                }
-                            });
-                        }
-                    }
-                }
-            } else {
-                saveToCloud();
-            }
-        } catch (e) {
-            console.log('Supabase Ladehinweis:', e);
-        }
-        renderAll();
-    }
-
-    async function saveToCloud() {
-        try {
-            let resultsOnly = {};
-            for (let mDay in leagueData.matches) {
-                resultsOnly[mDay] = leagueData.matches[mDay].map(m => {
-                    let res = {
-                        home: m.home,
-                        away: m.away
-                    };
-                    if (m.homeScore !== undefined && m.homeScore !== null) res.homeScore = m.homeScore;
-                    if (m.awayScore !== undefined && m.awayScore !== null) res.awayScore = m.awayScore;
-                    if (m.goal_scorer !== undefined && m.goal_scorer !== null && m.goal_scorer !== "") res.goal_scorer = m.goal_scorer;
-                    return res;
                 });
             }
 
-            let payloadToSave = {
-                currentMatchday: leagueData.currentMatchday,
-                match_results: resultsOnly
-            };
+            if (logosRes.data) {
+                teamLogos = {};
+                logosRes.data.forEach(item => {
+                    if (item.team_name && item.logo_url) {
+                        teamLogos[item.team_name.trim().toLowerCase()] = item.logo_url;
+                    }
+                });
+            }
 
-            let { error } = await supabaseClient
-                .from('bundesliga2_2627')
-                .upsert({ id: 'season_data', payload: payloadToSave });
-            
-            if (error) {
-                console.error('Supabase Speicherfehler:', error.message);
-                alert('Fehler beim Speichern in Supabase: ' + error.message);
+            if (showAlert) alert("Daten erfolgreich aktualisiert!");
+        } catch (e) {
+            console.log('Ladehinweis:', e);
+            if (showAlert) alert("Fehler beim Aktualisieren der Daten.");
+        }
+
+        await fetchOpenLigaData();
+    }
+
+    async function fetchOpenLigaData() {
+        try {
+            let response = await fetch('https://api.openligadb.de/getmatchdata/bl2/2026');
+            let data = await response.json();
+
+            openLigaMatches = {};
+            if (Array.isArray(data)) {
+                data.forEach(match => {
+                    let mDay = match.group && match.group.groupOrderID ? match.group.groupOrderID : 1;
+                    if (!openLigaMatches[mDay]) openLigaMatches[mDay] = [];
+
+                    let homeTeam = match.team1.teamName;
+                    let awayTeam = match.team2.teamName;
+                    let matchId = 'ol2_' + match.matchID;
+
+                    let homeScore = null;
+                    let awayScore = null;
+
+                    if (match.matchIsFinished && match.matchResults && match.matchResults.length > 0) {
+                        let res = match.matchResults.find(r => r.resultTypeID === 2) || match.matchResults[match.matchResults.length - 1];
+                        if (res) {
+                            homeScore = res.pointsTeam1;
+                            awayScore = res.pointsTeam2;
+                        }
+                    } else if (match.matchResults && match.matchResults.length > 0) {
+                        let res = match.matchResults[match.matchResults.length - 1];
+                        if (res && res.pointsTeam1 !== null && res.pointsTeam2 !== null) {
+                            homeScore = res.pointsTeam1;
+                            awayScore = res.pointsTeam2;
+                        }
+                    }
+
+                    // Torschützen einzeln als Array sammeln, ohne undefined
+                    let apiScorers = [];
+                    if (match.goals && Array.isArray(match.goals)) {
+                        match.goals.forEach(goal => {
+                            let name = goal.goalGetterName;
+                            if (name) {
+                                let min = (goal.matchMinute !== null && goal.matchMinute !== undefined) ? goal.matchMinute + "'" : "";
+                                let hPts = (goal.scoreTeam1 !== null && goal.scoreTeam1 !== undefined) ? goal.scoreTeam1 : goal.scoreGoal1;
+                                let aPts = (goal.scoreTeam2 !== null && goal.scoreTeam2 !== undefined) ? goal.scoreTeam2 : goal.scoreGoal2;
+                                
+                                let scoreStr = (hPts !== undefined && aPts !== undefined) ? ` (${hPts}:${aPts})` : "";
+                                let minStr = min ? ` (${min})` : "";
+                                apiScorers.push(`⚽ ${name}${minStr}${scoreStr}`);
+                            }
+                        });
+                    }
+
+                    let finalScorers = apiScorers.length > 0 ? apiScorers.join('<br>') : (cloudScorers[matchId] || "");
+
+                    let matchDateObj = new Date(match.matchDateTime);
+                    let dateStr = match.matchDateTime ? match.matchDateTime.split('T')[0] : "";
+                    let timeStr = !isNaN(matchDateObj.getTime()) ? matchDateObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : "15:30";
+
+                    openLigaMatches[mDay].push({
+                        match_id: matchId,
+                        home: homeTeam,
+                        away: awayTeam,
+                        date: dateStr,
+                        time: timeStr,
+                        homeScore: homeScore,
+                        awayScore: awayScore,
+                        isFinished: match.matchIsFinished,
+                        goal_scorer: finalScorers
+                    });
+                });
             }
         } catch (e) {
-            console.error('Speicherfehler:', e);
+            console.error("Fehler beim Abrufen von OpenLigaDB (2. Bundesliga):", e);
         }
+
+        renderAll();
     }
 
     function changeMatchday(amount) {
-        leagueData.currentMatchday = Math.max(1, Math.min(34, leagueData.currentMatchday + amount));
-        saveAndSync();
-    }
-
-    function jumpToLiveMatchday() {
-        let todayStr = new Date().toISOString().split('T')[0];
-        let targetMatchday = 1;
-        let foundToday = false;
-
-        for (let mDay = 1; mDay <= 34; mDay++) {
-            let matches = leagueData.matches[mDay] || [];
-            for (let m of matches) {
-                if (m.date === todayStr) {
-                    targetMatchday = parseInt(mDay);
-                    foundToday = true;
-                    break;
-                }
-            }
-            if (foundToday) break;
-        }
-
-        if (!foundToday) {
-            for (let mDay = 1; mDay <= 34; mDay++) {
-                let matches = leagueData.matches[mDay] || [];
-                if (matches.length > 0 && matches[0].date >= todayStr) {
-                    targetMatchday = parseInt(mDay);
-                    break;
-                }
-            }
-        }
-
-        leagueData.currentMatchday = targetMatchday;
-        saveAndSync();
+        currentMatchday = Math.max(1, Math.min(34, currentMatchday + amount));
+        localStorage.setItem('bundesliga2_current_matchday', currentMatchday);
+        renderAll();
     }
 
     function renderAll() {
-        document.getElementById('matchdayDisplay').textContent = `Spieltag ${leagueData.currentMatchday}`;
-        document.getElementById('adminMatchdayLabel').textContent = `Spieltag ${leagueData.currentMatchday}`;
-        document.getElementById('matchdayTableHeader').textContent = `Spieltag ${leagueData.currentMatchday} — Spiele & Ergebnisse`;
+        document.getElementById('matchdayDisplay').textContent = "Spieltag " + currentMatchday;
+        document.getElementById('adminMatchdayLabel').textContent = "Spieltag " + currentMatchday;
+        document.getElementById('matchdayTableHeader').textContent = "Spieltag " + currentMatchday + " — Spiele & Ergebnisse";
         
         renderMatchdayTable();
         renderTable();
         if (isAdmin) renderInputForm();
     }
 
-    function isMatchLive(matchDate, matchTime) {
-        if (!matchDate || !matchTime) return false;
-        try {
-            let matchStart = new Date(`${matchDate}T${matchTime}:00`);
-            let now = new Date();
-            let diffMs = now - matchStart;
-            let diffMins = diffMs / (1000 * 60);
-            return diffMins >= 0 && diffMins <= 120;
-        } catch (e) {
-            return false;
+    function getTeamHtml(teamName, alignRight = false) {
+        let logoUrl = teamLogos[teamName.trim().toLowerCase()];
+        let logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + teamName + '" class="team-mini-logo">' : '';
+
+        if (alignRight) {
+            return '<div class="team-cell-content" style="justify-content: flex-end;"><span>' + teamName + '</span>' + logoHtml + '</div>';
+        } else {
+            return '<div class="team-cell-content">' + logoHtml + '<span>' + teamName + '</span></div>';
         }
     }
 
     function renderMatchdayTable() {
         let tbody = document.getElementById('matchdayTableBody');
         tbody.innerHTML = '';
-        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
+        let existingMatches = openLigaMatches[currentMatchday] || [];
 
-        existingMatches.forEach((m, idx) => {
+        if (existingMatches.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für Spieltag ' + currentMatchday + ' gefunden.</td></tr>';
+            return;
+        }
+
+        existingMatches.forEach((m) => {
             let hasResult = m.homeScore !== undefined && m.homeScore !== null && m.awayScore !== undefined && m.awayScore !== null;
             let formattedDate = m.date ? m.date.split('-').reverse().join('.') : '-';
-            let timeStr = m.time ? ` ${m.time} Uhr` : '';
-            
-            let liveNow = isMatchLive(m.date, m.time);
+            let timeStr = m.time ? ' ' + m.time + ' Uhr' : '';
 
-            let resultDisplay = '';
-            if (hasResult) {
-                if (liveNow) {
-                    resultDisplay = `<strong>${m.homeScore}:${m.awayScore}</strong> <span class="live-badge"><span class="live-dot"></span>LIVE</span>`;
-                } else {
-                    resultDisplay = `<strong>${m.homeScore}:${m.awayScore}</strong>`;
-                }
-            } else {
-                if (liveNow) {
-                    resultDisplay = `<span class="live-badge"><span class="live-dot"></span>LIVE</span>`;
-                } else {
-                    resultDisplay = `<span style="color: var(--text-muted); font-style: italic;">vs</span>`;
-                }
+            let resultDisplay = hasResult ? '<strong>' + m.homeScore + ':' + m.awayScore + '</strong>' : '<span style="color: var(--text-muted); font-style: italic;">vs</span>';
+            if (hasResult && m.isFinished) {
+                resultDisplay += '<div style="font-size: 0.65rem; color: #3fb950; margin-top: 2px;">(Endstand)</div>';
+            } else if (hasResult) {
+                resultDisplay += '<div style="font-size: 0.65rem; color: #e3b341; margin-top: 2px;">(Live)</div>';
             }
 
-            if (hasResult && m.goal_scorer && m.goal_scorer.trim() !== "") {
-                resultDisplay += `<div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 2px;">⚽ ${m.goal_scorer}</div>`;
+            if (m.goal_scorer && m.goal_scorer.trim() !== "") {
+                resultDisplay += '<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">' + m.goal_scorer + '</div>';
             }
-
-            let deleteBtn = isAdmin ? `<button class="btn-danger" onclick="deleteMatchResult(${idx})" title="Ergebnis löschen">✕</button>` : '';
-
-            let homeLogo = getTeamLogoHtml(m.home);
-            let awayLogo = getTeamLogoHtml(m.away);
 
             let tr = document.createElement('tr');
             tr.innerHTML = `
-                <td style="font-size: 0.8rem; color: #ffffff;">${formattedDate}${timeStr}</td>
-                <td style="text-align: right;">
-                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-                        <span>${m.home}</span>
-                        ${homeLogo}
-                    </div>
-                </td>
-                <td style="text-align: center;">${resultDisplay}</td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        ${awayLogo}
-                        <span>${m.away}</span>
-                    </div>
-                </td>
-                <td style="text-align: center;">${deleteBtn}</td>
+                <td style="font-size: 0.8rem; color: #ffffff; vertical-align: top;">${formattedDate}${timeStr}</td>
+                <td style="text-align: right; vertical-align: top;">${getTeamHtml(m.home, true)}</td>
+                <td style="text-align: center; vertical-align: top;">${resultDisplay}</td>
+                <td style="vertical-align: top;">${getTeamHtml(m.away, false)}</td>
+                <td style="text-align: center; vertical-align: top;"></td>
             `;
             tbody.appendChild(tr);
         });
@@ -1083,80 +574,50 @@
     function renderTable() {
         let tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-
         let stats = {};
-        leagueData.teams.forEach(t => {
-            stats[t] = { name: t, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 };
+
+        let allTeams = [];
+        Object.values(openLigaMatches).forEach(matchList => {
+            if (Array.isArray(matchList)) {
+                matchList.forEach(m => {
+                    if (!allTeams.includes(m.home)) allTeams.push(m.home);
+                    if (!allTeams.includes(m.away)) allTeams.push(m.away);
+                });
+            }
         });
 
-        Object.values(leagueData.matches).forEach(matchList => {
+        allTeams.forEach(t => { stats[t] = { name: t, played: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, points: 0 }; });
+
+        Object.values(openLigaMatches).forEach(matchList => {
             if (!Array.isArray(matchList)) return;
             matchList.forEach(m => {
-                let hScore = m.homeScore !== undefined && m.homeScore !== null ? m.homeScore : null;
-                let aScore = m.awayScore !== undefined && m.awayScore !== null ? m.awayScore : null;
-
-                if (hScore === null || aScore === null || !stats[m.home] || !stats[m.away]) return;
-                
-                let homeScore = parseInt(hScore);
-                let awayScore = parseInt(aScore);
-
-                stats[m.home].played++;
-                stats[m.away].played++;
-                stats[m.home].goalsFor += homeScore;
-                stats[m.home].goalsAgainst += awayScore;
-                stats[m.away].goalsFor += awayScore;
-                stats[m.away].goalsAgainst += homeScore;
-
-                if (homeScore > awayScore) {
-                    stats[m.home].won++;
-                    stats[m.home].points += 3;
-                    stats[m.away].lost++;
-                } else if (homeScore < awayScore) {
-                    stats[m.away].won++;
-                    stats[m.away].points += 3;
-                    stats[m.home].lost++;
-                } else {
-                    stats[m.home].draw++;
-                    stats[m.home].points += 1;
-                    stats[m.away].draw++;
-                    stats[m.away].points += 1;
-                }
+                if (m.homeScore === undefined || m.homeScore === null || m.awayScore === undefined || m.awayScore === null) return;
+                let h = m.home, a = m.away;
+                if (!stats[h] || !stats[a]) return;
+                stats[h].played++; stats[a].played++;
+                stats[h].goalsFor += m.homeScore; stats[h].goalsAgainst += m.awayScore;
+                stats[a].goalsFor += m.awayScore; stats[a].goalsAgainst += m.homeScore;
+                if (m.homeScore > m.awayScore) { stats[h].won++; stats[h].points += 3; stats[a].lost++; }
+                else if (m.homeScore < m.awayScore) { stats[a].won++; stats[a].points += 3; stats[h].lost++; }
+                else { stats[h].draw++; stats[h].points += 1; stats[a].draw++; stats[a].points += 1; }
             });
         });
 
-        let sorted = Object.values(stats).sort((a, b) => {
-            if (b.points !== a.points) return b.points - a.points;
-            let diffB = b.goalsFor - b.goalsAgainst;
-            let diffA = a.goalsFor - a.goalsAgainst;
-            if (diffB !== diffA) return diffB - diffA;
-            return b.goalsFor - a.goalsFor;
-        });
+        let sorted = Object.values(stats).sort((a, b) => b.points !== a.points ? b.points - a.points : (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
+        
+        if (sorted.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">Tabelle wird nach den ersten Spielen berechnet.</td></tr>`;
+            return;
+        }
 
         sorted.forEach((s, idx) => {
             let tr = document.createElement('tr');
             if (idx === 0 || idx === 1) tr.classList.add('rank-first');
             else if (idx === 2) tr.classList.add('rank-third');
-            else if (idx >= sorted.length - 3 && sorted.length > 3) tr.classList.add('rank-last');
-
+            else if (idx >= sorted.length - 3 && sorted.length >= 15) tr.classList.add('rank-last');
+            
             let diff = s.goalsFor - s.goalsAgainst;
-            let logoHtml = getTeamLogoHtml(s.name);
-
-            tr.innerHTML = `
-                <td><strong>${idx + 1}.</strong></td>
-                <td>
-                    <div class="team-cell">
-                        ${logoHtml}
-                        <span>${s.name}</span>
-                    </div>
-                </td>
-                <td style="text-align: center;">${s.played}</td>
-                <td style="text-align: center;">${s.won}</td>
-                <td style="text-align: center;">${s.draw}</td>
-                <td style="text-align: center;">${s.lost}</td>
-                <td style="text-align: center;">${s.goalsFor}:${s.goalsAgainst}</td>
-                <td style="text-align: center;">${diff > 0 ? '+' : ''}${diff}</td>
-                <td style="text-align: center; font-weight: bold;">${s.points}</td>
-            `;
+            tr.innerHTML = '<td><strong>' + (idx + 1) + '.</strong></td><td>' + getTeamHtml(s.name, false) + '</td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
             tbody.appendChild(tr);
         });
     }
@@ -1164,96 +625,51 @@
     function renderInputForm() {
         let container = document.getElementById('matchInputsContainer');
         container.innerHTML = '';
-        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
+        let existingMatches = openLigaMatches[currentMatchday] || [];
 
-        existingMatches.forEach((m, idx) => {
+        if (existingMatches.length === 0) {
+            container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.8rem;">Keine Spiele an diesem Spieltag.</div>`;
+            return;
+        }
+
+        existingMatches.forEach((m) => {
             let card = document.createElement('div');
             card.className = 'match-input-card';
             card.innerHTML = `
-                <div style="font-size: 0.8rem; color: var(--liga2-bright-green); font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between;">
-                    <span>Partie ${idx + 1}</span>
-                    <span style="font-size: 0.75rem; color: var(--text-muted);">${m.date ? m.date.split('-').reverse().join('.') : ''} ${m.time || ''} Uhr</span>
-                </div>
+                <div style="font-size: 0.8rem; color: var(--liga2-bright-green); font-weight: bold; margin-bottom: 8px;">${m.home} vs ${m.away}</div>
                 <div class="form-grid">
-                    <div class="form-group form-group-team">
-                        <label>Heim</label>
-                        <span style="font-size: 0.8rem; font-weight: bold;">${m.home}</span>
-                    </div>
-                    <div class="form-group form-group-team">
-                        <label>Gast</label>
-                        <span style="font-size: 0.8rem; font-weight: bold;">${m.away}</span>
-                    </div>
-                    <div class="form-group">
-                        <label>Tore Heim</label>
-                        <input type="number" id="hs_${idx}" class="form-control" value="${m.homeScore !== undefined && m.homeScore !== null ? m.homeScore : ''}" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Tore Gast</label>
-                        <input type="number" id="as_${idx}" class="form-control" value="${m.awayScore !== undefined && m.awayScore !== null ? m.awayScore : ''}" min="0">
-                    </div>
-                    <div class="form-group" style="grid-column: span 2; margin-top: 6px;">
-                        <label>Torschützen eintragen</label>
-                        <input type="text" id="bs_${idx}" class="form-control" value="${m.goal_scorer || ''}" placeholder="Torschützen eintragen...">
-                    </div>
+                    <div class="form-group"><label>Torschützen manuell überschreiben</label><input type="text" id="bs_${m.match_id}" class="form-control" value="${m.goal_scorer || ''}" placeholder="Torschützen eingeben..."></div>
                 </div>
             `;
             container.appendChild(card);
         });
     }
 
-    function saveAllMatches() {
-        let existingMatches = leagueData.matches[leagueData.currentMatchday] || [];
-        for (let idx = 0; idx < existingMatches.length; idx++) {
-            let hsVal = document.getElementById(`hs_${idx}`).value;
-            let asVal = document.getElementById(`as_${idx}`).value;
-            let bsInput = document.getElementById(`bs_${idx}`);
+    async function saveAllScorers() {
+        let existingMatches = openLigaMatches[currentMatchday] || [];
 
-            if (hsVal !== '' && asVal !== '') {
-                existingMatches[idx].homeScore = parseInt(hsVal);
-                existingMatches[idx].awayScore = parseInt(asVal);
-                if (bsInput) existingMatches[idx].goal_scorer = bsInput.value;
-            } else {
-                delete existingMatches[idx].homeScore;
-                delete existingMatches[idx].awayScore;
-                delete existingMatches[idx].goal_scorer;
+        for (let m of existingMatches) {
+            let inputElem = document.getElementById('bs_' + m.match_id);
+            if (inputElem) {
+                let val = inputElem.value.trim();
+                m.goal_scorer = val;
+                cloudScorers[m.match_id] = val;
+
+                await supabaseClient.from('bundesliga2_spiele').upsert({
+                    match_id: m.match_id,
+                    matchday: currentMatchday,
+                    home_team: m.home,
+                    away_team: m.away,
+                    goal_scorer: val
+                }, { onConflict: 'match_id' });
             }
         }
-        saveAndSync();
-    }
 
-    function deleteMatchResult(idx) {
-        let existingMatches = leagueData.matches[leagueData.currentMatchday];
-        if (existingMatches && existingMatches[idx]) {
-            delete existingMatches[idx].homeScore;
-            delete existingMatches[idx].awayScore;
-            delete existingMatches[idx].goal_scorer;
-            saveAndSync();
-        }
-    }
-
-    function saveAndSync() {
         renderAll();
-        saveToCloud();
-    }
-
-    function setupAutoRefresh() {
-        setInterval(() => {
-            const todayStr = new Date().toISOString().split('T')[0];
-            let hasMatchToday = false;
-            let currentMatchdayData = leagueData.matches[leagueData.currentMatchday];
-            
-            if (Array.isArray(currentMatchdayData)) {
-                hasMatchToday = currentMatchdayData.some(match => match.date === todayStr);
-            }
-
-            if (hasMatchToday && !isAdmin) {
-                loadFromCloud();
-            }
-        }, 30000);
+        alert("Torschützen erfolgreich in der Cloud gespeichert!");
     }
 
     loadFromCloud();
-    setupAutoRefresh();
 </script>
 
 </body>

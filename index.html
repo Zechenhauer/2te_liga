@@ -116,17 +116,25 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
 
         .header-action-btn {
             background: rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: #ffffff;
-            padding: 3px 8px;
+            padding: 4px 10px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.75rem;
-            font-weight: normal;
+            font-weight: bold;
             transition: background 0.2s;
         }
         .header-action-btn:hover { background: rgba(0, 0, 0, 0.4); }
@@ -278,6 +286,53 @@
             transition: background 0.2s;
         }
         .btn:hover { background: var(--liga2-green-hover); }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--liga2-green);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 15px 20px;
+            background: var(--liga2-dark);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .modal-body {
+            padding: 15px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #ffffff; }
     </style>
 </head>
 <body>
@@ -296,7 +351,10 @@
     <div class="section-box">
         <div class="section-header">
             <span id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</span>
-            <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
+            <div class="header-actions">
+                <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
+                <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
+            </div>
         </div>
         <div class="matchday-controls">
             <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger</button>
@@ -325,7 +383,10 @@
     <div class="section-box">
         <div class="section-header">
             <span>2. Bundesliga-Tabelle (Gesamt)</span>
-            <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
+            <div class="header-actions">
+                <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
+                <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
+            </div>
         </div>
         <div class="table-container">
             <table>
@@ -347,7 +408,7 @@
                 </tbody>
             </table>
         </div>
-        <div style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted);">
+        <div style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-green); border-radius: 2px; display: inline-block;"></span> Direkter Aufstieg (1. & 2. Platz)</div>
             <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: rgba(46, 160, 67, 0.15); border: 1px solid var(--liga2-green); border-radius: 2px; display: inline-block;"></span> Relegationsplatz (3. Platz)</div>
             <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-yellow); border-radius: 2px; display: inline-block;"></span> Abstiegsplätze</div>
@@ -366,6 +427,32 @@
 
     <div class="admin-toggle-wrapper">
         <button class="admin-toggle-btn" onclick="toggleAdminMode()">⚙️ Admin-Zugang</button>
+    </div>
+</div>
+
+<!-- TORSCHÜTZEN MODAL -->
+<div class="modal-overlay" id="leagueScorersModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="margin: 0; font-size: 1rem; color: var(--liga2-bright-green);">⚽ 2. Bundesliga Torschützenliste</h3>
+            <button class="modal-close" onclick="closeLeagueScorersModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;">Pl.</th>
+                            <th>Spieler</th>
+                            <th style="text-align: center; width: 60px;">Tore</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leagueScorersModalBody">
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 20px;">Lade Torschützen...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -442,6 +529,14 @@
             openLigaMatches = {};
             if (Array.isArray(data)) {
                 data.forEach(match => {
+                    // Logos direkt aus den Spieldaten von OpenLigaDB einlesen
+                    if (match.team1 && match.team1.teamName && match.team1.teamIconUrl) {
+                        teamLogos[match.team1.teamName.trim().toLowerCase()] = match.team1.teamIconUrl;
+                    }
+                    if (match.team2 && match.team2.teamName && match.team2.teamIconUrl) {
+                        teamLogos[match.team2.teamName.trim().toLowerCase()] = match.team2.teamIconUrl;
+                    }
+
                     let mDay = match.group && match.group.groupOrderID ? match.group.groupOrderID : 1;
                     if (!openLigaMatches[mDay]) openLigaMatches[mDay] = [];
 
@@ -466,7 +561,6 @@
                         }
                     }
 
-                    // Torschützen einzeln als Array sammeln, ohne undefined
                     let apiScorers = [];
                     if (match.goals && Array.isArray(match.goals)) {
                         match.goals.forEach(goal => {
@@ -623,6 +717,54 @@
             tr.innerHTML = '<td><strong>' + (idx + 1) + '.</strong></td><td>' + getTeamHtml(s.name, false) + '</td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
             tbody.appendChild(tr);
         });
+    }
+
+    function openLeagueScorersModal() {
+        let tbody = document.getElementById('leagueScorersModalBody');
+        tbody.innerHTML = '';
+        let scorersMap = {};
+
+        Object.values(openLigaMatches).forEach(matchList => {
+            if (!Array.isArray(matchList)) return;
+            matchList.forEach(m => {
+                if (m.goal_scorer && typeof m.goal_scorer === 'string') {
+                    // Zeilen auslesen und extrahieren
+                    let lines = m.goal_scorer.split('<br>');
+                    lines.forEach(line => {
+                        let cleanLine = line.replace('⚽', '').trim();
+                        if (!cleanLine) return;
+                        // Spielername extrahieren (vor Klammern wie Minute oder Spielstand)
+                        let playerName = cleanLine.split('(')[0].trim();
+                        if (playerName) {
+                            if (!scorersMap[playerName]) scorersMap[playerName] = 0;
+                            scorersMap[playerName]++;
+                        }
+                    });
+                }
+            });
+        });
+
+        let scorersArray = Object.keys(scorersMap).map(name => ({ name: name, goals: scorersMap[name] }));
+        if (scorersArray.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 20px;">Noch keine Torschützen erfasst.</td></tr>`;
+        } else {
+            scorersArray.sort((a, b) => b.goals - a.goals);
+            scorersArray.forEach((s, idx) => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align: center; font-weight: bold; color: var(--text-muted);">${idx + 1}.</td>
+                    <td>${s.name}</td>
+                    <td style="text-align: center; font-weight: bold; color: var(--liga2-bright-green);">${s.goals}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('leagueScorersModal').style.display = 'flex';
+    }
+
+    function closeLeagueScorersModal() {
+        document.getElementById('leagueScorersModal').style.display = 'none';
     }
 
     function renderInputForm() {

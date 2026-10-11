@@ -149,6 +149,7 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .header-action-btn {
@@ -364,6 +365,7 @@
         <div class="section-header">
             <span id="matchdayTableHeader">Spieltag 1 — Spiele & Ergebnisse</span>
             <div class="header-actions">
+                <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
                 <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
                 <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
             </div>
@@ -396,6 +398,7 @@
         <div class="section-header">
             <span>2. Bundesliga-Tabelle (Gesamt)</span>
             <div class="header-actions">
+                <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
                 <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
                 <button class="header-action-btn" onclick="loadFromCloud(true)">🔄 Aktualisieren</button>
             </div>
@@ -435,6 +438,7 @@
         </div>
         <div id="matchInputsContainer"></div>
         <button class="btn" onclick="saveAllScorers()">Manuelle Torschützen speichern</button>
+        <button class="btn" style="background: #238636; margin-top: 10px;" onclick="sendTestPush()">🚀 Test-Push Benachrichtigung senden</button>
     </div>
 
     <div class="admin-toggle-wrapper">
@@ -479,7 +483,113 @@
     let teamLogos = {};
     let openLigaMatches = {};
     let cloudScorers = {};
+    let previousScores = {}; // Speichert die letzten Stände zur automatischen Toraerkennung
     let currentMatchday = parseInt(localStorage.getItem('bundesliga2_current_matchday')) || 6;
+
+    // VAPID Public Key Helper für Base64-Konvertierung
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    // Push Benachrichtigungen aktivieren und mit VAPID Key in Supabase speichern
+    async function requestPushPermission() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
+            return;
+        }
+        
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert("Die Berechtigung für Benachrichtigungen wurde verweigert.");
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            await registration.ready;
+
+            const publicVapidKey = 'BAsnfWgySLti5LzulXfN-xI-x7UDV32LO98YXgg1qdoRY1E1Tl05QPgCvOMgfwe80cSv_K7336-dhJTgBkHUI70';
+            
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+            });
+
+            const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
+            const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
+
+            const { error } = await supabaseClient.from('push_subscriptions').upsert({
+                endpoint: subscription.endpoint,
+                p256dh: p256dh,
+                auth: auth
+            }, { onConflict: 'endpoint' });
+
+            if (error) {
+                console.error("Supabase Fehlerdetails:", error);
+                alert("Fehler in Supabase: " + error.message);
+            } else {
+                alert("Push-Alarm erfolgreich aktiviert! Dein Gerät ist jetzt registriert.");
+            }
+
+        } catch (error) {
+            console.error('Fehler bei der Push-Registrierung:', error);
+            alert("Fehler beim Aktivieren der Benachrichtigung: " + error.message);
+        }
+    }
+
+    // Test-Push an die Supabase Edge Function senden
+    async function sendTestPush() {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: "⚽ Test-Tor-Alarm!",
+                    body: "Das Test-Tor wurde erfolgreich über die Edge Function ausgelöst!"
+                })
+            });
+
+            const textResponse = await response.text();
+            
+            if (response.ok) {
+                alert("Test-Push erfolgreich ausgelöst! Gerät(e) sollten benachrichtigt werden.");
+                console.log("Antwort:", textResponse);
+            } else {
+                alert("Fehler von der Edge Function: " + textResponse);
+            }
+        } catch (e) {
+            console.error("Netzwerkfehler:", e);
+            alert("Netzwerkfehler: " + e.message);
+        }
+    }
+
+    // Automatischer Push bei echtem Tor
+    async function triggerAutomaticGoalPush(home, away, hScore, aScore) {
+        try {
+            await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `⚽ TOR! (${hScore}:${aScore})`,
+                    body: `${home} vs ${away}`
+                })
+            });
+            console.log(`Automatischer Tor-Alarm ausgelöst für ${home} vs ${away} (${hScore}:${aScore})`);
+        } catch (e) {
+            console.error("Fehler beim automatischen Tor-Push:", e);
+        }
+    }
 
     function toggleAdminMode() {
         const adminCard = document.getElementById('adminCard');
@@ -563,6 +673,17 @@
                             homeScore = res.pointsTeam1;
                             awayScore = res.pointsTeam2;
                         }
+                    }
+
+                    // --- AUTOMATISCHE TOR-ERKENNUNG ---
+                    if (homeScore !== null && awayScore !== null) {
+                        let prev = previousScores[matchId];
+                        if (prev !== undefined) {
+                            if (homeScore > prev.home || awayScore > prev.away) {
+                                triggerAutomaticGoalPush(homeTeam, awayTeam, homeScore, awayScore);
+                            }
+                        }
+                        previousScores[matchId] = { home: homeScore, away: awayScore };
                     }
 
                     let apiScorers = [];

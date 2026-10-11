@@ -20,8 +20,10 @@
             --liga2-green-hover: #238636;
             --liga2-dark: #112217;
             --accent-green: rgba(46, 160, 67, 0.25);
-            --accent-yellow: rgba(227, 179, 64, 0.22);
+            --accent-orange: rgba(230, 126, 34, 0.3); /* Relegation */
+            --accent-yellow: rgba(227, 179, 64, 0.22); /* Abstieg */
             --liga2-bright-green: #3fb950;
+            --liga2-orange: #f39c12;
         }
 
         * { box-sizing: border-box; }
@@ -81,6 +83,7 @@
             justify-content: center;
             gap: 15px;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .supabase-badge {
@@ -90,6 +93,29 @@
             border-radius: 4px;
             border: 1px solid rgba(46, 160, 67, 0.3);
             font-weight: 600;
+        }
+
+        @keyframes pulse-cyan {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .live-badge {
+            display: none;
+            color: #ff7b72;
+            background: rgba(248, 81, 73, 0.15);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(248, 81, 73, 0.3);
+            font-weight: 600;
+            align-items: center;
+            gap: 5px;
+        }
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            background-color: #f85149;
+            border-radius: 50%;
+            animation: pulse-cyan 1.5s infinite;
         }
 
         .section-box {
@@ -192,9 +218,10 @@
             color: #3fb950;
             font-weight: bold;
         }
-        tr.rank-third td {
-            background: rgba(46, 160, 67, 0.15);
-            color: var(--liga2-bright-green);
+        tr.rank-relegation td {
+            background: var(--accent-orange);
+            color: var(--liga2-orange);
+            font-weight: bold;
         }
         tr.rank-last td {
             background: var(--accent-yellow);
@@ -345,6 +372,7 @@
     <div class="meta-info">
         <span>⚡ Web-App & Management: Jürgen Schützendorf</span>
         <span class="supabase-badge" id="cloudStatusBadge">● OpenLigaDB & Cloud aktiv</span>
+        <div class="live-badge" id="liveIndicatorBadge"><span class="live-dot"></span> LIVE-SPIELE LÄUFT</div>
     </div>
 
     <!-- SPIELTAGS-TABELLE -->
@@ -410,8 +438,8 @@
         </div>
         <div style="display: flex; gap: 15px; margin-top: 10px; font-size: 0.75rem; color: var(--text-muted); flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-green); border-radius: 2px; display: inline-block;"></span> Direkter Aufstieg (1. & 2. Platz)</div>
-            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: rgba(46, 160, 67, 0.15); border: 1px solid var(--liga2-green); border-radius: 2px; display: inline-block;"></span> Relegationsplatz (3. Platz)</div>
-            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-yellow); border-radius: 2px; display: inline-block;"></span> Abstiegsplätze</div>
+            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-orange); border-radius: 2px; display: inline-block;"></span> Relegationsplätze (3. & 16. Platz)</div>
+            <div style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; background: var(--accent-yellow); border-radius: 2px; display: inline-block;"></span> Direkter Abstieg (17. & 18. Platz)</div>
         </div>
     </div>
 
@@ -527,15 +555,19 @@
             let data = await response.json();
 
             openLigaMatches = {};
+            let hasLiveMatches = false;
+
             if (Array.isArray(data)) {
                 data.forEach(match => {
-                    // Logos direkt aus den Spieldaten von OpenLigaDB einlesen
                     if (match.team1 && match.team1.teamName && match.team1.teamIconUrl) {
                         teamLogos[match.team1.teamName.trim().toLowerCase()] = match.team1.teamIconUrl;
                     }
                     if (match.team2 && match.team2.teamName && match.team2.teamIconUrl) {
                         teamLogos[match.team2.teamName.trim().toLowerCase()] = match.team2.teamIconUrl;
                     }
+
+                    let isCurrentlyLive = !match.matchIsFinished && match.matchResults && match.matchResults.length > 0;
+                    if (isCurrentlyLive) hasLiveMatches = true;
 
                     let mDay = match.group && match.group.groupOrderID ? match.group.groupOrderID : 1;
                     if (!openLigaMatches[mDay]) openLigaMatches[mDay] = [];
@@ -596,6 +628,12 @@
                     });
                 });
             }
+
+            let liveBadge = document.getElementById('liveIndicatorBadge');
+            if (liveBadge) {
+                liveBadge.style.display = hasLiveMatches ? 'flex' : 'none';
+            }
+
         } catch (e) {
             console.error("Fehler beim Abrufen von OpenLigaDB (2. Bundesliga):", e);
         }
@@ -649,7 +687,7 @@
             if (hasResult && m.isFinished) {
                 resultDisplay += '<div style="font-size: 0.65rem; color: #3fb950; margin-top: 2px;">(Endstand)</div>';
             } else if (hasResult) {
-                resultDisplay += '<div style="font-size: 0.65rem; color: #e3b341; margin-top: 2px;">(Live)</div>';
+                resultDisplay += '<div style="font-size: 0.65rem; color: #f85149; margin-top: 2px; font-weight: bold;">● (Live)</div>';
             }
 
             if (m.goal_scorer && m.goal_scorer.trim() !== "") {
@@ -709,12 +747,18 @@
 
         sorted.forEach((s, idx) => {
             let tr = document.createElement('tr');
-            if (idx === 0 || idx === 1) tr.classList.add('rank-first');
-            else if (idx === 2) tr.classList.add('rank-third');
-            else if (idx >= sorted.length - 3 && sorted.length >= 15) tr.classList.add('rank-last');
+            let rank = idx + 1;
+
+            if (rank === 1 || rank === 2) {
+                tr.classList.add('rank-first'); // Direkter Aufstieg (Grün)
+            } else if (rank === 3 || rank === 16) {
+                tr.classList.add('rank-relegation'); // Relegation (Orange)
+            } else if (rank >= 17 && sorted.length >= 15) {
+                tr.classList.add('rank-last'); // Direkter Abstieg (Gelb)
+            }
             
             let diff = s.goalsFor - s.goalsAgainst;
-            tr.innerHTML = '<td><strong>' + (idx + 1) + '.</strong></td><td>' + getTeamHtml(s.name, false) + '</td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
+            tr.innerHTML = '<td><strong>' + rank + '.</strong></td><td>' + getTeamHtml(s.name, false) + '</td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
             tbody.appendChild(tr);
         });
     }
@@ -728,12 +772,10 @@
             if (!Array.isArray(matchList)) return;
             matchList.forEach(m => {
                 if (m.goal_scorer && typeof m.goal_scorer === 'string') {
-                    // Zeilen auslesen und extrahieren
                     let lines = m.goal_scorer.split('<br>');
                     lines.forEach(line => {
                         let cleanLine = line.replace('⚽', '').trim();
                         if (!cleanLine) return;
-                        // Spielername extrahieren (vor Klammern wie Minute oder Spielstand)
                         let playerName = cleanLine.split('(')[0].trim();
                         if (playerName) {
                             if (!scorersMap[playerName]) scorersMap[playerName] = 0;
@@ -815,6 +857,9 @@
     }
 
     loadFromCloud();
+    setInterval(() => {
+        fetchOpenLigaData();
+    }, 30000);
 </script>
 
 </body>

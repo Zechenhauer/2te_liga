@@ -483,7 +483,7 @@
     let teamLogos = {};
     let openLigaMatches = {};
     let cloudScorers = {};
-    let previousScores = {}; // Speichert die letzten Stände zur automatischen Toraerkennung
+    let previousScores = {}; 
     let currentMatchday = parseInt(localStorage.getItem('bundesliga2_current_matchday')) || 6;
 
     // VAPID Public Key Helper für Base64-Konvertierung
@@ -498,7 +498,7 @@
         return outputArray;
     }
 
-    // Push Benachrichtigungen aktivieren und mit VAPID Key in Supabase speichern
+    // Push Benachrichtigungen aktivieren und mit VAPID Key in der Liga 2 Tabelle speichern
     async function requestPushPermission() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
@@ -525,7 +525,8 @@
             const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
             const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
 
-            const { error } = await supabaseClient.from('push_subscriptions').upsert({
+            // HIER AUF DIE NEUE LIGA-2-TABELLE GEÄNDERT:
+            const { error } = await supabaseClient.from('push_subscriptions_liga2').upsert({
                 endpoint: subscription.endpoint,
                 p256dh: p256dh,
                 auth: auth
@@ -535,7 +536,7 @@
                 console.error("Supabase Fehlerdetails:", error);
                 alert("Fehler in Supabase: " + error.message);
             } else {
-                alert("Push-Alarm erfolgreich aktiviert! Dein Gerät ist jetzt registriert.");
+                alert("Push-Alarm für 2. Bundesliga erfolgreich aktiviert! Dein Gerät ist jetzt registriert.");
             }
 
         } catch (error) {
@@ -554,8 +555,8 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    title: "⚽ Test-Tor-Alarm!",
-                    body: "Das Test-Tor wurde erfolgreich über die Edge Function ausgelöst!"
+                    title: "⚽ 2. BL Test-Alarm",
+                    body: "Das Test-Tor für die 2. Bundesliga wurde erfolgreich ausgelöst!"
                 })
             });
 
@@ -563,7 +564,6 @@
             
             if (response.ok) {
                 alert("Test-Push erfolgreich ausgelöst! Gerät(e) sollten benachrichtigt werden.");
-                console.log("Antwort:", textResponse);
             } else {
                 alert("Fehler von der Edge Function: " + textResponse);
             }
@@ -573,7 +573,7 @@
         }
     }
 
-    // Automatischer Push bei echtem Tor inkl. Torschütze und Spielminute
+    // Automatischer Push bei echtem Tor inkl. Torschütze und Minute
     async function triggerAutomaticGoalPush(home, away, hScore, aScore, scorerName = '', minute = '') {
         try {
             let detail = scorerName ? 'Tor durch ' + scorerName : "Tor!";
@@ -586,11 +586,11 @@
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title: `⚽ TOR! (${hScore}:${aScore})`,
+                    title: `⚽ TOR in 2. BL! (${hScore}:${aScore})`,
                     body: `${home} vs ${away} — ${detail}`
                 })
             });
-            console.log(`Automatischer Tor-Alarm ausgelöst für ${home} vs ${away} (${hScore}:${aScore})`);
+            console.log(`Tor-Push ausgelöst für ${home} vs ${away} (${hScore}:${aScore})`);
         } catch (e) {
             console.error("Fehler beim automatischen Tor-Push:", e);
         }
@@ -680,7 +680,7 @@
                         }
                     }
 
-                    // --- AUTOMATISCHE TOR-ERKENNUNG MIT TORSCHÜTZE & MINUTE ---
+                    // --- AUTOMATISCHE TOR-ERKENNUNG ---
                     if (homeScore !== null && awayScore !== null) {
                         let prev = previousScores[matchId];
                         if (prev !== undefined) {

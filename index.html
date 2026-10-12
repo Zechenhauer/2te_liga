@@ -486,7 +486,6 @@
     let previousScores = {}; 
     let currentMatchday = parseInt(localStorage.getItem('bundesliga2_current_matchday')) || 6;
 
-    // VAPID Public Key Helper für Base64-Konvertierung
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
         const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -498,7 +497,7 @@
         return outputArray;
     }
 
-    // Push Benachrichtigungen aktivieren und mit VAPID Key in der Liga 2 Tabelle speichern
+    // Push Benachrichtigungen aktivieren und in push_subscriptions_liga2 speichern
     async function requestPushPermission() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
@@ -525,7 +524,7 @@
             const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
             const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
 
-            // HIER AUF DIE NEUE LIGA-2-TABELLE GEÄNDERT:
+            // Speichern in push_subscriptions_liga2:
             const { error } = await supabaseClient.from('push_subscriptions_liga2').upsert({
                 endpoint: subscription.endpoint,
                 p256dh: p256dh,
@@ -545,16 +544,18 @@
         }
     }
 
-    // Test-Push an die Supabase Edge Function senden
+    // Test-Push spezifisch für die Liga 2 Tabelle via Edge Function
     async function sendTestPush() {
         try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+            const targetUrl = SUPABASE_URL + '/functions/v1/send-push';
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    table: 'push_subscriptions_liga2',
                     title: "⚽ 2. BL Test-Alarm",
                     body: "Das Test-Tor für die 2. Bundesliga wurde erfolgreich ausgelöst!"
                 })
@@ -563,7 +564,7 @@
             const textResponse = await response.text();
             
             if (response.ok) {
-                alert("Test-Push erfolgreich ausgelöst! Gerät(e) sollten benachrichtigt werden.");
+                alert("Test-Push für 2. Bundesliga erfolgreich ausgelöst!");
             } else {
                 alert("Fehler von der Edge Function: " + textResponse);
             }
@@ -573,7 +574,6 @@
         }
     }
 
-    // Automatischer Push bei echtem Tor inkl. Torschütze und Minute
     async function triggerAutomaticGoalPush(home, away, hScore, aScore, scorerName = '', minute = '') {
         try {
             let detail = scorerName ? 'Tor durch ' + scorerName : "Tor!";
@@ -581,11 +581,13 @@
                 detail += ' (' + minute + '. Min)';
             }
 
-            await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+            const targetUrl = SUPABASE_URL + '/functions/v1/send-push';
+            await fetch(targetUrl, {
                 method: 'POST',
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    table: 'push_subscriptions_liga2',
                     title: `⚽ TOR in 2. BL! (${hScore}:${aScore})`,
                     body: `${home} vs ${away} — ${detail}`
                 })
@@ -680,7 +682,6 @@
                         }
                     }
 
-                    // --- AUTOMATISCHE TOR-ERKENNUNG ---
                     if (homeScore !== null && awayScore !== null) {
                         let prev = previousScores[matchId];
                         if (prev !== undefined) {

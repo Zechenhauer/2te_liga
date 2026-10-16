@@ -416,7 +416,7 @@
     <!-- SPIELTAGS-TABELLE -->
     <div class="section-box">
         <div class="section-header">
-            <span id="matchdayTableHeader">Spieltag 10 — Spiele & Ergebnisse</span>
+            <span id="matchdayTableHeader">Spiele & Ergebnisse</span>
             <div class="header-actions">
                 <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
                 <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
@@ -425,7 +425,7 @@
         </div>
         <div class="matchday-controls">
             <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger</button>
-            <strong id="matchdayDisplay" style="color: var(--accent-gold); font-size: 1.05rem;">Spieltag 10</strong>
+            <strong id="matchdayDisplay" style="color: var(--accent-gold); font-size: 1.05rem;">Spieltag</strong>
             <button class="matchday-btn" onclick="changeMatchday(1)">Nächster ▶</button>
         </div>
         <div class="table-container">
@@ -544,11 +544,11 @@
 
     let teamLogos = {};
     let leagueMatches = {};
-    let currentMatchday = 10; // Da wir uns im Oktober 2026 befinden, ist Spieltag 10 aktuell ideal
+    let currentMatchday = 10; 
     let isInitialized = false;
     let nextMatchDateTime = null;
 
-    // Präzise eingestellter Kalender (inkl. exakter Daten für Spieltage 4 bis 7)
+    // Präzise eingestellter Kalender
     const matchdayFridays = {
         1: "2026-08-07", 2: "2026-08-14", 3: "2026-08-28", 4: "2026-09-04", 5: "2026-09-11",
         6: "2026-09-18", 7: "2026-10-09", 8: "2026-10-16", 9: "2026-10-23", 10: "2026-10-30",
@@ -558,6 +558,36 @@
         26: "2027-03-12", 27: "2027-03-19", 28: "2027-04-02", 29: "2027-04-09", 30: "2027-04-16",
         31: "2027-04-23", 32: "2027-04-30", 33: "2027-05-07", 34: "2027-05-16"
     };
+
+    // Automatische Ermittlung des aktuellen Spieltags anhand des heutigen Datums
+    function determineCurrentMatchday() {
+        let today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let bestMatchday = 9; 
+        let minDiff = Infinity;
+
+        for (let s = 1; s <= 34; s++) {
+            let friStr = matchdayFridays[s];
+            if (!friStr) continue;
+            let friDate = new Date(friStr);
+            friDate.setHours(0, 0, 0, 0);
+
+            let sunDate = new Date(friDate);
+            sunDate.setDate(friDate.getDate() + 3);
+
+            if (today >= friDate && today <= sunDate) {
+                return s;
+            }
+
+            let diff = Math.abs(today - friDate);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestMatchday = s;
+            }
+        }
+        return bestMatchday;
+    }
 
     function urlBase64ToUint8Array(base64String) {
         const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -625,6 +655,23 @@
         }
     }
 
+    async function triggerAutomaticPush(title, bodyText) {
+        try {
+            await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    table: 'push_subscriptions_liga2',
+                    title: title,
+                    body: bodyText
+                })
+            });
+        } catch (e) {
+            console.error("Automatischer Push fehlgeschlagen:", e);
+        }
+    }
+
     function toggleAdminMode() {
         const adminCard = document.getElementById('adminCard');
         if (isAdmin) {
@@ -654,6 +701,9 @@
                 });
             }
 
+            let oldMatchesCache = JSON.parse(localStorage.getItem('cached_league_matches_v4') || '{}');
+            let newMatchesCache = {};
+
             leagueMatches = {};
             let hasLive = false;
 
@@ -662,7 +712,6 @@
                 let dObj = new Date(fri);
                 let datesToFetch = [];
 
-                // 4-Tage-Fenster pro Spieltag (deckt Freitag bis Montag ab)
                 for (let i = 0; i < 4; i++) {
                     let d = new Date(dObj);
                     d.setDate(dObj.getDate() + i);
@@ -728,6 +777,30 @@
                         });
                     }
 
+                    // --- TOR-ERKENNUNG INKLUSIVE TORSCHÜTZEN FÜR PUSH ---
+                    let matchKey = `st_${s}_${homeComp.team.displayName}_vs_${awayComp.team.displayName}`;
+                    newMatchesCache[matchKey] = { homeScore: homeScoreVal, awayScore: awayScoreVal };
+
+                    if (oldMatchesCache[matchKey] !== undefined) {
+                        let oldHome = oldMatchesCache[matchKey].homeScore ?? 0;
+                        let oldAway = oldMatchesCache[matchKey].awayScore ?? 0;
+                        let currHome = homeScoreVal ?? 0;
+                        let currAway = awayScoreVal ?? 0;
+
+                        if (currHome > oldHome || currAway > oldAway) {
+                            let latestScorer = "";
+                            if (currHome > oldHome && goalsHome.length > 0) {
+                                latestScorer = `\nTorschütze: ${goalsHome[goalsHome.length - 1]}`;
+                            } else if (currAway > oldAway && goalsAway.length > 0) {
+                                latestScorer = `\nTorschütze: ${goalsAway[goalsAway.length - 1]}`;
+                            }
+
+                            let pushTitle = "⚽ TOR! (2. Bundesliga)";
+                            let pushBody = `${homeComp.team.displayName} ${currHome} : ${currAway} ${awayComp.team.displayName}${latestScorer}`;
+                            triggerAutomaticPush(pushTitle, pushBody);
+                        }
+                    }
+
                     leagueMatches[s].push({
                         home: homeComp.team.displayName,
                         away: awayComp.team.displayName,
@@ -746,12 +819,14 @@
                 leagueMatches[s].sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
             }
 
+            localStorage.setItem('cached_league_matches_v4', JSON.stringify(newMatchesCache));
+
             let liveBadge = document.getElementById('liveIndicatorBadge');
             if (liveBadge) liveBadge.style.display = hasLive ? 'flex' : 'none';
 
             if (!isInitialized) {
                 isInitialized = true;
-                currentMatchday = 10;
+                currentMatchday = determineCurrentMatchday(); // Springt automatisch auf den aktuellen Spieltag!
             }
 
             if (showAlert) alert("ESPN Live-Daten erfolgreich synchronisiert!");
@@ -803,7 +878,6 @@
             nextMatchDateTime = null;
         }
 
-        // --- TOP 3 TORSCHÜTZEN KACHEL ---
         let scorersMap = {};
         allMatches.forEach(m => {
             let parseScorers = (gList) => {
@@ -838,7 +912,6 @@
             topScorersWidget.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Noch keine Torschützen erfasst</span>';
         }
 
-        // --- LIGAÜBERSICHT ---
         let totalFinished = 0;
         let totalGoals = 0;
         allMatches.forEach(m => {
@@ -1036,9 +1109,7 @@
 
     // LIVE-AKTUALISIERUNG ALLE 30 SEKUNDEN
     setInterval(() => {
-        if (!isAdmin) {
-            loadEspnMatchdayData();
-        }
+        loadEspnMatchdayData();
     }, 30000);
 </script>
 

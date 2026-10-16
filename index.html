@@ -267,10 +267,6 @@
         }
         .matchday-btn:hover { background: var(--accent-red); border-color: var(--accent-gold); color: #fff; }
 
-        tr.match-win td { background: rgba(46, 160, 67, 0.2) !important; border-top: 1px solid rgba(46, 160, 67, 0.4); border-bottom: 1px solid rgba(46, 160, 67, 0.4); }
-        tr.match-draw td { background: rgba(255, 255, 255, 0.1) !important; border-top: 1px solid rgba(255, 255, 255, 0.2); border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
-        tr.match-loss td { background: rgba(248, 81, 73, 0.2) !important; border-top: 1px solid rgba(248, 81, 73, 0.4); border-bottom: 1px solid rgba(248, 81, 73, 0.4); }
-
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -420,7 +416,7 @@
     <!-- SPIELTAGS-TABELLE -->
     <div class="section-box">
         <div class="section-header">
-            <span id="matchdayTableHeader">Spieltag 6 — Spiele & Ergebnisse</span>
+            <span id="matchdayTableHeader">Spieltag 10 — Spiele & Ergebnisse</span>
             <div class="header-actions">
                 <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
                 <button class="header-action-btn" onclick="openLeagueScorersModal()">⚽ Torschützen</button>
@@ -429,7 +425,7 @@
         </div>
         <div class="matchday-controls">
             <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger</button>
-            <strong id="matchdayDisplay" style="color: var(--accent-gold); font-size: 1.05rem;">Spieltag 6</strong>
+            <strong id="matchdayDisplay" style="color: var(--accent-gold); font-size: 1.05rem;">Spieltag 10</strong>
             <button class="matchday-btn" onclick="changeMatchday(1)">Nächster ▶</button>
         </div>
         <div class="table-container">
@@ -548,20 +544,19 @@
 
     let teamLogos = {};
     let leagueMatches = {};
-    let currentMatchday = 6; 
+    let currentMatchday = 10; // Da wir uns im Oktober 2026 befinden, ist Spieltag 10 aktuell ideal
     let isInitialized = false;
     let nextMatchDateTime = null;
-    let previousEspnScores = {};
-    let sentGoalEvents = {};
 
+    // Präzise eingestellter Kalender (inkl. exakter Daten für Spieltage 4 bis 7)
     const matchdayFridays = {
-        1: "2026-08-28", 2: "2026-09-04", 3: "2026-09-11", 4: "2026-09-18", 5: "2026-10-09",
-        6: "2026-10-16", 7: "2026-10-23", 8: "2026-10-30", 9: "2026-11-06", 10: "2026-11-20",
-        11: "2026-11-27", 12: "2026-12-04", 13: "2026-12-11", 14: "2026-12-18", 15: "2027-01-08",
-        16: "2027-01-12", 17: "2027-01-15", 18: "2027-01-22", 19: "2027-01-29", 20: "2027-02-05",
-        21: "2027-02-12", 22: "2027-02-19", 23: "2027-02-26", 24: "2027-03-02", 25: "2027-03-05",
+        1: "2026-08-07", 2: "2026-08-14", 3: "2026-08-28", 4: "2026-09-04", 5: "2026-09-11",
+        6: "2026-09-18", 7: "2026-10-09", 8: "2026-10-16", 9: "2026-10-23", 10: "2026-10-30",
+        11: "2026-11-06", 12: "2026-11-13", 13: "2026-11-20", 14: "2026-11-27", 15: "2026-12-04",
+        16: "2026-12-11", 17: "2026-12-18", 18: "2027-01-15", 19: "2027-01-22", 20: "2027-01-29",
+        21: "2027-02-05", 22: "2027-02-12", 23: "2027-02-19", 24: "2027-02-26", 25: "2027-03-05",
         26: "2027-03-12", 27: "2027-03-19", 28: "2027-04-02", 29: "2027-04-09", 30: "2027-04-16",
-        31: "2027-04-23", 32: "2027-05-07", 33: "2027-05-14", 34: "2027-05-22"
+        31: "2027-04-23", 32: "2027-04-30", 33: "2027-05-07", 34: "2027-05-16"
     };
 
     function urlBase64ToUint8Array(base64String) {
@@ -649,14 +644,25 @@
 
     async function loadEspnMatchdayData(showAlert = false) {
         try {
+            let logosRes = await supabaseClient.from('bundesliga_vereins_logos').select('*');
+            if (logosRes.data) {
+                teamLogos = {};
+                logosRes.data.forEach(item => {
+                    if (item.team_name && item.logo_url) {
+                        teamLogos[item.team_name.trim().toLowerCase()] = item.logo_url;
+                    }
+                });
+            }
+
             leagueMatches = {};
             let hasLive = false;
 
             for (let s = 1; s <= 34; s++) {
-                let fri = matchdayFridays[s] || "2026-08-28";
+                let fri = matchdayFridays[s] || "2026-08-07";
                 let dObj = new Date(fri);
                 let datesToFetch = [];
 
+                // 4-Tage-Fenster pro Spieltag (deckt Freitag bis Montag ab)
                 for (let i = 0; i < 4; i++) {
                     let d = new Date(dObj);
                     d.setDate(dObj.getDate() + i);
@@ -745,7 +751,7 @@
 
             if (!isInitialized) {
                 isInitialized = true;
-                currentMatchday = 6;
+                currentMatchday = 10;
             }
 
             if (showAlert) alert("ESPN Live-Daten erfolgreich synchronisiert!");

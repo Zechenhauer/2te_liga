@@ -799,7 +799,42 @@
                             let pushBody = `${homeComp.team.displayName} ${currHome} : ${currAway} ${awayComp.team.displayName}${latestScorer}`;
                             triggerAutomaticPush(pushTitle, pushBody);
                         }
-                    }
+                    // --- TOR-ERKENNUNG (WARTET AUF TORSCHÜTZEN) ---
+                    let matchKey = `st_${s}_${homeComp.team.displayName}_vs_${awayComp.team.displayName}`;
+                    newMatchesCache[matchKey] = { homeScore: homeScoreVal, awayScore: awayScoreVal };
+
+                    if (oldMatchesCache[matchKey] !== undefined) {
+                        let oldHome = oldMatchesCache[matchKey].homeScore ?? 0;
+                        let oldAway = oldMatchesCache[matchKey].awayScore ?? 0;
+                        let currHome = homeScoreVal ?? 0;
+                        let currAway = awayScoreVal ?? 0;
+
+                        if (currHome > oldHome || currAway > oldAway) {
+                            let latestScorer = "";
+                            if (currHome > oldHome && goalsHome.length > 0) {
+                                latestScorer = goalsHome[goalsHome.length - 1];
+                            } else if (currAway > oldAway && goalsAway.length > 0) {
+                                latestScorer = goalsAway[goalsAway.length - 1];
+                            }
+
+                            // Prüfen, ob der Torschütze von ESPN schon da ist
+                            let hasValidScorer = latestScorer && !latestScorer.includes("Tor") && latestScorer.trim() !== "⚽";
+                            
+                            // Speichert im localStorage, ob für diesen Spielstand bereits gepusht wurde
+                            let pushKey = `pushed_${matchKey}_${currHome}_${currAway}`;
+                            let alreadyPushed = localStorage.getItem(pushKey) === 'true';
+
+                            if (hasValidScorer && !alreadyPushed) {
+                                localStorage.setItem(pushKey, 'true');
+
+                                let pushTitle = "⚽ TOR! (2. Bundesliga)";
+                                let pushBody = `${homeComp.team.displayName} ${currHome} : ${currAway} ${awayComp.team.displayName}\nTorschütze: ${latestScorer}`;
+                                triggerAutomaticPush(pushTitle, pushBody);
+                            }
+                        }
+                    }   // <-- 1. Klammer schließt "if (currHome > oldHome...)"
+                        // <-- 2. Klammer schließt "if (oldMatchesCache...)"
+                        // <-- (Die 3. Klammer schließt die innere 'if (hasValidScorer...)')
 
                     leagueMatches[s].push({
                         home: homeComp.team.displayName,

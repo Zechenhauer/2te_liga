@@ -751,33 +751,50 @@
                     let dateStr = ev.date ? ev.date.split('T')[0] : fri;
                     let timeStr = !isNaN(matchDateObj.getTime()) ? matchDateObj.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : "13:30";
 
-                    let goalsHome = [];
-                    let goalsAway = [];
-
                     let homeScoreVal = homeComp.score !== undefined && homeComp.score !== "" && statusType !== 'pre' ? parseInt(homeComp.score) : null;
                     let awayScoreVal = awayComp.score !== undefined && awayComp.score !== "" && statusType !== 'pre' ? parseInt(awayComp.score) : null;
                     
+                    let goalsHome = [];
+                    let goalsAway = [];
+
                     if (comp.details && Array.isArray(comp.details)) {
-                        comp.details.forEach(detail => {
-                            if (detail.type?.text === "Goal" || detail.scoringPlay || detail.goalValue > 0) {
-                                let playerName = detail.scorer?.athlete?.displayName 
-                                    || detail.athlete?.displayName 
-                                    || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
-                                    || "Tor";
+                        let sortedDetails = [...comp.details].filter(d => d.type?.text === "Goal" || d.scoringPlay || d.goalValue > 0);
+                        sortedDetails.sort((a, b) => {
+                            let minA = parseInt(a.clock?.value || a.clock?.displayValue || 0);
+                            let minB = parseInt(b.clock?.value || b.clock?.displayValue || 0);
+                            return minA - minB;
+                        });
 
-                                let clock = detail.clock?.displayValue || "";
-                                let goalEntry = clock ? `${playerName} (${clock}')` : playerName;
+                        let runningHome = 0;
+                        let runningAway = 0;
 
-                                if (detail.team?.id === homeComp.team.id) {
-                                    goalsHome.push(`⚽ ${goalEntry}`);
-                                } else if (detail.team?.id === awayComp.team.id) {
-                                    goalsAway.push(`⚽ ${goalEntry}`);
-                                }
+                        sortedDetails.forEach(detail => {
+                            let playerName = detail.scorer?.athlete?.displayName 
+                                || detail.athlete?.displayName 
+                                || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
+                                || "Tor";
+
+                            let clock = detail.clock?.displayValue || "";
+                            let isHomeGoal = detail.team?.id === homeComp.team.id;
+
+                            if (isHomeGoal) {
+                                runningHome++;
+                            } else {
+                                runningAway++;
+                            }
+
+                            let scorePrefix = `[${runningHome}:${runningAway}] `;
+                            let goalEntry = clock ? `${scorePrefix}${playerName} (${clock}')` : `${scorePrefix}${playerName}`;
+
+                            if (isHomeGoal) {
+                                goalsHome.push(`⚽ ${goalEntry}`);
+                            } else {
+                                goalsAway.push(`⚽ ${goalEntry}`);
                             }
                         });
                     }
 
-                    // --- TOR-ERKENNUNG (WARTET AUF TORSCHÜTZEN) ---
+                    // --- ROBUSTE TOR-ERKENNUNG & SOFORT-PUSH ---
                     let matchKey = `st_${s}_${homeComp.team.displayName}_vs_${awayComp.team.displayName}`;
                     newMatchesCache[matchKey] = { homeScore: homeScoreVal, awayScore: awayScoreVal };
 
@@ -794,19 +811,19 @@
                             } else if (currAway > oldAway && goalsAway.length > 0) {
                                 latestScorer = goalsAway[goalsAway.length - 1];
                             }
-
-                            // Prüfen, ob der Torschütze von ESPN schon da ist
-                            let hasValidScorer = latestScorer && !latestScorer.includes("Tor") && latestScorer.trim() !== "⚽";
                             
-                            // Speichert im localStorage, ob für diesen Spielstand bereits gepusht wurde
+                            if (!latestScorer || latestScorer.trim() === "⚽" || latestScorer.includes("Tor")) {
+                                latestScorer = `⚽ Tor erzielt! (${currHome}:${currAway})`;
+                            }
+
                             let pushKey = `pushed_${matchKey}_${currHome}_${currAway}`;
                             let alreadyPushed = localStorage.getItem(pushKey) === 'true';
 
-                            if (hasValidScorer && !alreadyPushed) {
+                            if (!alreadyPushed) {
                                 localStorage.setItem(pushKey, 'true');
 
-                                let pushTitle = "⚽ TOR! (2. Bundesliga)";
-                                let pushBody = `${homeComp.team.displayName} ${currHome} : ${currAway} ${awayComp.team.displayName}\nTorschütze: ${latestScorer}`;
+                                let pushTitle = `⚽ TOR! ${currHome}:${currAway}`;
+                                let pushBody = `${homeComp.team.displayName} vs ${awayComp.team.displayName}\n${latestScorer}`;
                                 triggerAutomaticPush(pushTitle, pushBody);
                             }
                         }
@@ -837,7 +854,7 @@
 
             if (!isInitialized) {
                 isInitialized = true;
-                currentMatchday = determineCurrentMatchday(); // Springt automatisch auf den aktuellen Spieltag!
+                currentMatchday = determineCurrentMatchday(); 
             }
 
             if (showAlert) alert("ESPN Live-Daten erfolgreich synchronisiert!");
@@ -895,6 +912,12 @@
                 if (Array.isArray(gList)) {
                     gList.forEach(g => {
                         let clean = g.replace('⚽', '').trim();
+                        if (clean.startsWith('[')) {
+                            let closeIdx = clean.indexOf(']');
+                            if (closeIdx !== -1) {
+                                clean = clean.substring(closeIdx + 1).trim();
+                            }
+                        }
                         let name = clean.split('(')[0].trim();
                         if (name && name.toLowerCase() !== 'tor') {
                             scorersMap[name] = (scorersMap[name] || 0) + 1;
@@ -986,6 +1009,12 @@
                     let parse = (gList, team) => {
                         gList.forEach(g => {
                             let clean = g.replace('⚽', '').trim();
+                            if (clean.startsWith('[')) {
+                                let closeIdx = clean.indexOf(']');
+                                if (closeIdx !== -1) {
+                                    clean = clean.substring(closeIdx + 1).trim();
+                                }
+                            }
                             let name = clean.split('(')[0].trim();
                             if (name && name.toLowerCase() !== 'tor') {
                                 if (!scorersMap[name]) scorersMap[name] = { count: 0, team: team };

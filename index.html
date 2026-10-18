@@ -276,7 +276,6 @@
         }
         .matchday-btn:hover { background: var(--accent-purple); border-color: var(--accent-cyan); color: #fff; }
 
-        /* SPIELTAGS-KACHELN GRID */
         .match-grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
@@ -376,14 +375,8 @@
             font-size: 0.75rem;
             font-weight: 500;
         }
-        /* Heim-Tore im gewohnten Cyan */
-        .goal-item.home-goal {
-            color: var(--accent-cyan);
-        }
-        /* Gast-Tore in edlem Gold/Gelb */
-        .goal-item.away-goal {
-            color: var(--accent-gold);
-        }
+        .goal-item.home-goal { color: var(--accent-cyan); }
+        .goal-item.away-goal { color: var(--accent-gold); }
 
         .table-container {
             width: 100%;
@@ -502,7 +495,6 @@
 <body>
 
 <div class="container">
-    <!-- POPPY HEADER BANNER -->
     <div class="header-banner">
         <div class="title-row">
             <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/germany_2-bundesliga_1500x1500.football-logos.cc.png" alt="2. BL Logo" class="header-logo">
@@ -586,7 +578,6 @@
             <div style="display: flex; align-items: center; gap: 6px;"><span style="width: 12px; height: 12px; background: rgba(255, 0, 127, 0.4); border-radius: 3px; display: inline-block;"></span> Abstieg (17. - 18.)</div>
         </div>
 
-        <!-- BESUCHER COUNTER -->
         <div class="visitor-counter">
             👁️ App-Besucher insgesamt: <strong id="visitorCountDisplay">20</strong>
         </div>
@@ -649,9 +640,7 @@
                             <th>Meister / Staffelsieger</th>
                         </tr>
                     </thead>
-                    <tbody id="leagueHistoryModalBody">
-                        <!-- Wird per JS gefüllt -->
-                    </tbody>
+                    <tbody id="leagueHistoryModalBody"></tbody>
                 </table>
             </div>
         </div>
@@ -667,7 +656,6 @@
     const ADMIN_PIN = "1919";
     let isAdmin = false;
 
-    // BESUCHER COUNTER
     function initVisitorCounter() {
         let count = parseInt(localStorage.getItem('bundesliga2_app_visitors') || '20');
         if (!sessionStorage.getItem('visited_liga2_session')) {
@@ -684,7 +672,6 @@
     let isInitialized = false;
     let nextMatchDateTime = null;
 
-    // Meister-Historie der 2. Bundesliga
     const historyData = [
         { season: "2025/26", champion: "FC Schalke 04" },
         { season: "2024/25", champion: "1. FC Köln" },
@@ -740,7 +727,6 @@
         { season: "1974/75", champion: "Hannover 96 (Nord) / Karlsruher SC (Süd)" }
     ];
 
-    // Präzise eingestellter Kalender
     const matchdayFridays = {
         1: "2026-08-07", 2: "2026-08-14", 3: "2026-08-28", 4: "2026-09-04", 5: "2026-09-11",
         6: "2026-09-18", 7: "2026-10-09", 8: "2026-10-16", 9: "2026-10-23", 10: "2026-10-30",
@@ -754,7 +740,6 @@
     function determineCurrentMatchday() {
         let today = new Date();
         today.setHours(0, 0, 0, 0);
-
         let bestMatchday = 9; 
         let minDiff = Infinity;
 
@@ -846,20 +831,33 @@
         }
     }
 
-    async function triggerAutomaticPush(title, bodyText) {
-        try {
-            await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    table: 'push_subscriptions_liga2',
-                    title: title,
-                    body: bodyText
-                })
-            });
-        } catch (e) {
-            console.error("Automatischer Push fehlgeschlagen:", e);
+    // KORRIGIERTE PUSH-LOGIK (Warten auf Torschützen & Verhinderung von Mehrfach-Pushes)
+    async function triggerGoalPush(home, away, hScore, aScore, latestScorer) {
+        let matchKey = `liga2_st_${currentMatchday}_${home}_vs_${away}`;
+        let pushKey = `pushed_${matchKey}_${hScore}_${aScore}`;
+        let alreadyPushed = localStorage.getItem(pushKey) === 'true';
+
+        let hasValidScorer = latestScorer && !latestScorer.includes("Tor") && latestScorer.trim() !== "⚽";
+
+        if (hasValidScorer && !alreadyPushed) {
+            localStorage.setItem(pushKey, 'true');
+
+            try {
+                let bodyText = `${home} ${hScore} : ${aScore} ${away}\nTorschütze: ${latestScorer}`;
+
+                await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table: 'push_subscriptions_liga2',
+                        title: "⚽ TOR! (2. Bundesliga)",
+                        body: bodyText
+                    })
+                });
+            } catch (e) {
+                console.error("Fehler beim Push:", e);
+            }
         }
     }
 
@@ -880,6 +878,8 @@
         }
     }
 
+    let previousEspnScores = {};
+
     async function loadEspnMatchdayData(showAlert = false) {
         try {
             let logosRes = await supabaseClient.from('bundesliga_vereins_logos').select('*');
@@ -891,9 +891,6 @@
                     }
                 });
             }
-
-            let oldMatchesCache = JSON.parse(localStorage.getItem('cached_league_matches_v5') || '{}');
-            let newMatchesCache = {};
 
             leagueMatches = {};
             let hasLive = false;
@@ -946,6 +943,7 @@
                     let awayScoreVal = awayComp.score !== undefined && awayComp.score !== "" && statusType !== 'pre' ? parseInt(awayComp.score) : null;
                     
                     let matchGoals = [];
+                    let latestScorerText = "";
 
                     if (comp.details && Array.isArray(comp.details)) {
                         let sortedDetails = [...comp.details].filter(d => d.type?.text === "Goal" || d.scoringPlay || d.goalValue > 0);
@@ -962,48 +960,46 @@
                             let playerName = detail.scorer?.athlete?.displayName 
                                 || detail.athlete?.displayName 
                                 || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
-                                || "Tor";
+                                || "";
+
+                            if (!playerName && detail.text) {
+                                let cleanText = detail.text.replace(/scored.*\$/, '').trim();
+                                if (cleanText && cleanText.toLowerCase() !== 'goal') {
+                                    playerName = cleanText;
+                                }
+                            }
+
+                            if (!playerName) {
+                                playerName = detail.team?.displayName || "Tor";
+                            }
 
                             let clock = detail.clock?.displayValue || "";
                             let isHomeGoal = detail.team?.id === homeComp.team.id;
 
-                            if (isHomeGoal) {
-                                runningHome++;
-                            } else {
-                                runningAway++;
-                            }
+                            if (isHomeGoal) runningHome++;
+                            else runningAway++;
 
                             let scorePrefix = `[${runningHome}:${runningAway}]`;
                             let teamName = isHomeGoal ? homeComp.team.displayName : awayComp.team.displayName;
-                            let goalText = clock ? `${teamName}: ${playerName} (${clock}')` : `${teamName}: ${playerName}`;
+                            let goalEntry = clock ? `${playerName} (${clock}')` : playerName;
+                            latestScorerText = goalEntry;
 
                             matchGoals.push({
-                                text: `⚽ ${scorePrefix} ${goalText}`,
+                                text: `⚽ ${scorePrefix} ${teamName}: ${goalEntry}`,
                                 isHome: isHomeGoal
                             });
                         });
                     }
 
-                    let matchKey = `st_${s}_${homeComp.team.displayName}_vs_${awayComp.team.displayName}`;
-                    newMatchesCache[matchKey] = { homeScore: homeScoreVal, awayScore: awayScoreVal };
-
-                    if (oldMatchesCache[matchKey] !== undefined) {
-                        let oldHome = oldMatchesCache[matchKey].homeScore ?? 0;
-                        let oldAway = oldMatchesCache[matchKey].awayScore ?? 0;
-                        let currHome = homeScoreVal ?? 0;
-                        let currAway = awayScoreVal ?? 0;
-
-                        if (currHome > oldHome || currAway > oldAway) {
-                            let pushKey = `pushed_${matchKey}_${currHome}_${currAway}`;
-                            let alreadyPushed = localStorage.getItem(pushKey) === 'true';
-
-                            if (!alreadyPushed) {
-                                localStorage.setItem(pushKey, 'true');
-                                let pushTitle = `⚽ TOR! ${currHome}:${currAway}`;
-                                let pushBody = `${homeComp.team.displayName} vs ${awayComp.team.displayName}\nTor erzielt!`;
-                                triggerAutomaticPush(pushTitle, pushBody);
+                    if (homeScoreVal !== null && awayScoreVal !== null) {
+                        let matchId = 'espn2_' + ev.id;
+                        let prev = previousEspnScores[matchId];
+                        if (prev !== undefined && isLive) {
+                            if (homeScoreVal > prev.home || awayScoreVal > prev.away) {
+                                triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, latestScorerText);
                             }
                         }
+                        previousEspnScores[matchId] = { home: homeScoreVal, away: awayScoreVal };
                     }
 
                     leagueMatches[s].push({
@@ -1022,8 +1018,6 @@
 
                 leagueMatches[s].sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
             }
-
-            localStorage.setItem('cached_league_matches_v5', JSON.stringify(newMatchesCache));
 
             let liveBadge = document.getElementById('liveIndicatorBadge');
             if (liveBadge) liveBadge.style.display = hasLive ? 'flex' : 'none';
@@ -1090,7 +1084,6 @@
                     if (tmp.includes(']')) tmp = tmp.split(']')[1].trim();
                     if (tmp.includes(':')) tmp = tmp.split(':')[1].trim();
                     let name = tmp.split('(')[0].trim();
-                    // Team anhand der Zuordnung ermitteln
                     let teamName = gObj.isHome ? m.home : m.away;
                     if (name && name.toLowerCase() !== 'tor') {
                         if (!scorersMap[name]) scorersMap[name] = { count: 0, team: teamName };
@@ -1356,13 +1349,13 @@
         if (e.target === document.getElementById('leagueHistoryModal')) closeLeagueHistoryModal();
     }
 
-    // INITIALISIERUNG
     initVisitorCounter();
     loadEspnMatchdayData();
 
-    // LIVE-AKTUALISIERUNG ALLE 30 SEKUNDEN
     setInterval(() => {
-        loadEspnMatchdayData();
+        if (!isAdmin) {
+            loadEspnMatchdayData();
+        }
     }, 30000);
 </script>
 

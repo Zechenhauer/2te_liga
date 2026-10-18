@@ -213,7 +213,7 @@
             letter-spacing: 0.8px;
             margin-bottom: 12px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
         }
         .dash-card-content {
@@ -276,6 +276,108 @@
         }
         .matchday-btn:hover { background: var(--accent-purple); border-color: var(--accent-cyan); color: #fff; }
 
+        /* SPIELTAGS-KACHELN GRID */
+        .match-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .match-grid-container { grid-template-columns: 1fr; }
+        }
+
+        .match-card {
+            background: #131836;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+        .match-card:hover { border-color: rgba(0, 242, 254, 0.4); }
+        .match-card.is-draw {
+            border-color: rgba(255, 170, 0, 0.5);
+            box-shadow: 0 4px 18px rgba(255, 170, 0, 0.12);
+        }
+
+        .match-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .match-status-badge {
+            background: rgba(0, 242, 254, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            letter-spacing: 0.5px;
+        }
+        .match-status-badge.live { background: rgba(255, 51, 102, 0.2); color: #ff3366; border-color: rgba(255, 51, 102, 0.4); }
+        .match-status-badge.ende { background: rgba(63, 185, 80, 0.15); color: #3fb950; border-color: rgba(63, 185, 80, 0.3); }
+
+        .match-row-team {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0d1124;
+            border: 1px solid #1f284f;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+        .match-row-team.winner {
+            border-color: rgba(63, 185, 80, 0.5);
+            background: rgba(63, 185, 80, 0.08);
+        }
+        .match-team-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+        .match-row-team.winner .match-team-info span {
+            color: #3fb950 !important;
+            font-weight: 800;
+        }
+        .match-score-box {
+            background: #1a2240;
+            border: 1px solid #273352;
+            color: #ffffff;
+            font-weight: 800;
+            padding: 6px 12px;
+            border-radius: 6px;
+            min-width: 36px;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        .match-row-team.winner .match-score-box {
+            background: rgba(63, 185, 80, 0.2);
+            border-color: #3fb950;
+            color: #3fb950;
+        }
+
+        .match-goals-list {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .goal-item {
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            font-weight: 500;
+        }
+
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -312,7 +414,6 @@
             align-items: center;
             gap: 12px;
         }
-        .team-cell.right { justify-content: flex-end; }
         .team-mini-logo {
             width: 26px;
             height: 26px;
@@ -425,7 +526,7 @@
         </div>
     </div>
 
-    <!-- SPIELTAGS-TABELLE -->
+    <!-- SPIELTAGS-KACHELN -->
     <div class="section-box">
         <div class="section-header">
             <span id="matchdayTableHeader">Spiele & Ergebnisse</span>
@@ -441,20 +542,9 @@
             <strong id="matchdayDisplay" style="color: var(--accent-cyan); font-size: 1.1rem;">Spieltag</strong>
             <button class="matchday-btn" onclick="changeMatchday(1)">Nächster ▶</button>
         </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 120px;">Termin</th>
-                        <th style="text-align: right;">Heimmannschaft</th>
-                        <th style="text-align: center; width: 160px;">Ergebnis / Status</th>
-                        <th>Gastmannschaft</th>
-                    </tr>
-                </thead>
-                <tbody id="matchdayTableBody">
-                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Lade Spielplan von ESPN...</td></tr>
-                </tbody>
-            </table>
+        
+        <div id="matchdayCardsContainer" class="match-grid-container">
+            <div style="text-align: center; color: var(--text-muted); padding: 20px; grid-column: 1/-1;">Lade Spielplan von ESPN...</div>
         </div>
     </div>
 
@@ -878,12 +968,13 @@
                             }
 
                             let scorePrefix = `[${runningHome}:${runningAway}] `;
-                            let goalEntry = clock ? `${scorePrefix}${playerName} (${clock}')` : `${scorePrefix}${playerName}`;
+                            let goalEntry = clock ? `${scorePrefix}${homeComp.team.displayName}: ${playerName} (${clock}')` : `${scorePrefix}${homeComp.team.displayName}: ${playerName}`;
+                            let goalEntryAway = clock ? `${scorePrefix}${awayComp.team.displayName}: ${playerName} (${clock}')` : `${scorePrefix}${awayComp.team.displayName}: ${playerName}`;
 
                             if (isHomeGoal) {
                                 goalsHome.push(`⚽ ${goalEntry}`);
                             } else {
-                                goalsAway.push(`⚽ ${goalEntry}`);
+                                goalsAway.push(`⚽ ${goalEntryAway}`);
                             }
                         });
                     }
@@ -968,7 +1059,7 @@
         document.getElementById('matchdayDisplay').textContent = "Spieltag " + currentMatchday;
         document.getElementById('matchdayTableHeader').textContent = "Spieltag " + currentMatchday + " — Spiele & Ergebnisse";
         
-        renderMatchdayTable();
+        renderMatchdayCards();
         renderTable();
         updateWidgets();
     }
@@ -1005,11 +1096,17 @@
                 if (Array.isArray(gList)) {
                     gList.forEach(g => {
                         let clean = g.replace('⚽', '').trim();
+                        if (clean.includes(':')) {
+                            clean = clean.split(':')[1].trim();
+                        }
                         if (clean.startsWith('[')) {
                             let closeIdx = clean.indexOf(']');
                             if (closeIdx !== -1) {
                                 clean = clean.substring(closeIdx + 1).trim();
                             }
+                        }
+                        if (clean.includes(':')) {
+                            clean = clean.split(':')[1].trim();
                         }
                         let name = clean.split('(')[0].trim();
                         if (name && name.toLowerCase() !== 'tor') {
@@ -1071,40 +1168,13 @@
     }
     setInterval(updateCountdown, 1000);
 
-    function getTeamHtml(teamName, alignRight = false, goals = [], isWinner = false, isDraw = false) {
+    function getTeamHtml(teamName, isWinner = false) {
         let logoUrl = teamLogos[teamName.trim().toLowerCase()] || "";
         let logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + teamName + '" class="team-mini-logo">' : '';
 
-        let badgeHtml = '';
-        let nameStyle = '';
-        if (isWinner) {
-            // Edles Sieger-Icon (Grüner Haken als SVG)
-            badgeHtml = ' <span style="display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px;" title="Gewinner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb950" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
-            nameStyle = 'font-weight: 800; color: #ffffff;';
-        } else if (isDraw) {
-            // Dezentes Unentschieden-Icon (Zwei Cyan-Balken als SVG)
-            badgeHtml = ' <span style="display: inline-flex; align-items: center; vertical-align: middle; margin-left: 4px; opacity: 0.8;" title="Unentschieden"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="3" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg></span>';
-            nameStyle = 'font-weight: 600; color: var(--text-color);';
-        } else {
-            nameStyle = 'font-weight: 500; color: var(--text-muted);';
-        }
+        let nameStyle = isWinner ? 'font-weight: 800; color: #3fb950;' : 'font-weight: 500; color: var(--text-muted);';
 
-        let goalsHtml = '';
-        if (goals && goals.length > 0) {
-            let alignmentStyle = alignRight ? 'text-align: right;' : 'text-align: left;';
-            let indentStyle = alignRight ? 'padding-right: 38px;' : 'padding-left: 38px;';
-            goalsHtml = `<div style="font-size: 0.72rem; color: #00f2fe; margin-top: 4px; line-height: 1.3; font-weight: 500; ${alignmentStyle} ${indentStyle}">${goals.join('<br>')}</div>`;
-        }
-
-        let teamText = alignRight 
-            ? `${badgeHtml}<span style="${nameStyle}">${teamName}</span>` 
-            : `<span style="${nameStyle}">${teamName}</span>${badgeHtml}`;
-
-        if (alignRight) {
-            return `<div style="display: flex; flex-direction: column;"><div class="team-cell right">${teamText}${logoHtml}</div>${goalsHtml}</div>`;
-        } else {
-            return `<div style="display: flex; flex-direction: column;"><div class="team-cell">${logoHtml}${teamText}</div>${goalsHtml}</div>`;
-        }
+        return `<div class="match-team-info">${logoHtml}<span style="${nameStyle}">${teamName}</span></div>`;
     }
 
     async function openLeagueScorersModal() {
@@ -1120,11 +1190,17 @@
                     let parse = (gList, team) => {
                         gList.forEach(g => {
                             let clean = g.replace('⚽', '').trim();
+                            if (clean.includes(':')) {
+                                clean = clean.split(':')[1].trim();
+                            }
                             if (clean.startsWith('[')) {
                                 let closeIdx = clean.indexOf(']');
                                 if (closeIdx !== -1) {
                                     clean = clean.substring(closeIdx + 1).trim();
                                 }
+                            }
+                            if (clean.includes(':')) {
+                                clean = clean.split(':')[1].trim();
                             }
                             let name = clean.split('(')[0].trim();
                             if (name && name.toLowerCase() !== 'tor') {
@@ -1189,26 +1265,26 @@
         document.getElementById('leagueHistoryModal').style.display = 'none';
     }
 
-    function renderMatchdayTable() {
-        let tbody = document.getElementById('matchdayTableBody');
-        tbody.innerHTML = '';
+    function renderMatchdayCards() {
+        let container = document.getElementById('matchdayCardsContainer');
+        container.innerHTML = '';
         let existingMatches = leagueMatches[currentMatchday] || [];
 
         if (existingMatches.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für Spieltag ' + currentMatchday + ' gefunden.</td></tr>';
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px; grid-column: 1/-1;">Keine Spiele für Spieltag ' + currentMatchday + ' gefunden.</div>';
             return;
         }
 
         existingMatches.forEach(m => {
             let hasResult = m.homeScore !== undefined && m.homeScore !== null && m.awayScore !== undefined && m.awayScore !== null;
             let formattedDate = m.date ? m.date.split('-').reverse().join('.') : '-';
-            let timeStr = m.time ? ' ' + m.time + ' Uhr' : '';
+            let timeStr = m.time ? ' — ' + m.time + ' UHR' : '';
 
-            let resultDisplay = hasResult ? '<strong>' + m.homeScore + ':' + m.awayScore + '</strong>' : '<span style="color: var(--text-muted); font-style: italic;">vs</span>';
+            let statusBadge = '<span class="match-status-badge">ANSETZUNG</span>';
             if (m.isLive) {
-                resultDisplay += '<div style="font-size: 0.65rem; color: #ff3366; font-weight: bold; margin-top: 2px; text-align: center;">🔴 LIVE</div>';
+                statusBadge = '<span class="match-status-badge live">🔴 LIVE</span>';
             } else if (m.isFinished) {
-                resultDisplay += '<div style="font-size: 0.65rem; color: #00f2fe; margin-top: 2px; text-align: center;">(Endstand)</div>';
+                statusBadge = '<span class="match-status-badge ende">ENDE</span>';
             }
 
             let isHomeWinner = false;
@@ -1221,14 +1297,37 @@
                 else isDraw = true;
             }
 
-            let tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="font-size: 0.8rem; color: #ffffff; vertical-align: top;">${formattedDate}${timeStr}</td>
-                <td style="text-align: right; vertical-align: top;">${getTeamHtml(m.home, true, m.goalsHome, isHomeWinner, isDraw)}</td>
-                <td style="text-align: center; vertical-align: middle;">${resultDisplay}</td>
-                <td style="text-align: left; vertical-align: top;">${getTeamHtml(m.away, false, m.goalsAway, isAwayWinner, isDraw)}</td>
+            let homeScoreDisplay = hasResult ? m.homeScore : '-';
+            let awayScoreDisplay = hasResult ? m.awayScore : '-';
+
+            let goalsCombined = [];
+            if (m.goalsHome) goalsCombined.push(...m.goalsHome);
+            if (m.goalsAway) goalsCombined.push(...m.goalsAway);
+
+            let goalsHtml = '';
+            if (goalsCombined.length > 0) {
+                let formattedGoals = goalsCombined.map(g => `<div class="goal-item">${g}</div>`).join('');
+                goalsHtml = `<div class="match-goals-list">${formattedGoals}</div>`;
+            }
+
+            let card = document.createElement('div');
+            card.className = 'match-card' + (isDraw ? ' is-draw' : '');
+            card.innerHTML = `
+                <div class="match-card-header">
+                    <span>${formattedDate}${timeStr}</span>
+                    ${statusBadge}
+                </div>
+                <div class="match-row-team ${isHomeWinner ? 'winner' : ''}">
+                    ${getTeamHtml(m.home, isHomeWinner)}
+                    <div class="match-score-box">${homeScoreDisplay}</div>
+                </div>
+                <div class="match-row-team ${isAwayWinner ? 'winner' : ''}">
+                    ${getTeamHtml(m.away, isAwayWinner)}
+                    <div class="match-score-box">${awayScoreDisplay}</div>
+                </div>
+                ${goalsHtml}
             `;
-            tbody.appendChild(tr);
+            container.appendChild(card);
         });
     }
 
@@ -1279,7 +1378,10 @@
             }
 
             let diff = s.goalsFor - s.goalsAgainst;
-            tr.innerHTML = '<td><strong>' + rank + '.</strong></td><td>' + getTeamHtml(s.name, false) + '</td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
+            let logoUrl = teamLogos[s.name.trim().toLowerCase()] || "";
+            let logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + s.name + '" class="team-mini-logo">' : '';
+            
+            tr.innerHTML = '<td><strong>' + rank + '.</strong></td><td><div class="team-cell">' + logoHtml + '<span>' + s.name + '</span></div></td><td style="text-align: center;">' + s.played + '</td><td style="text-align: center;">' + s.won + '</td><td style="text-align: center;">' + s.draw + '</td><td style="text-align: center;">' + s.lost + '</td><td style="text-align: center;">' + s.goalsFor + ':' + s.goalsAgainst + '</td><td style="text-align: center;">' + (diff > 0 ? '+' : '') + diff + '</td><td style="text-align: center; font-weight: bold;">' + s.points + '</td>';
             tbody.appendChild(tr);
         });
     }

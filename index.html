@@ -374,8 +374,15 @@
         }
         .goal-item {
             font-size: 0.75rem;
-            color: var(--accent-cyan);
             font-weight: 500;
+        }
+        /* Heim-Tore im gewohnten Cyan */
+        .goal-item.home-goal {
+            color: var(--accent-cyan);
+        }
+        /* Gast-Tore in edlem Gold/Gelb */
+        .goal-item.away-goal {
+            color: var(--accent-gold);
         }
 
         .table-container {
@@ -938,8 +945,7 @@
                     let homeScoreVal = homeComp.score !== undefined && homeComp.score !== "" && statusType !== 'pre' ? parseInt(homeComp.score) : null;
                     let awayScoreVal = awayComp.score !== undefined && awayComp.score !== "" && statusType !== 'pre' ? parseInt(awayComp.score) : null;
                     
-                    let goalsHome = [];
-                    let goalsAway = [];
+                    let matchGoals = [];
 
                     if (comp.details && Array.isArray(comp.details)) {
                         let sortedDetails = [...comp.details].filter(d => d.type?.text === "Goal" || d.scoringPlay || d.goalValue > 0);
@@ -967,15 +973,14 @@
                                 runningAway++;
                             }
 
-                            let scorePrefix = `[${runningHome}:${runningAway}] `;
-                            let goalEntry = clock ? `${scorePrefix}${homeComp.team.displayName}: ${playerName} (${clock}')` : `${scorePrefix}${homeComp.team.displayName}: ${playerName}`;
-                            let goalEntryAway = clock ? `${scorePrefix}${awayComp.team.displayName}: ${playerName} (${clock}')` : `${scorePrefix}${awayComp.team.displayName}: ${playerName}`;
+                            let scorePrefix = `[${runningHome}:${runningAway}]`;
+                            let teamName = isHomeGoal ? homeComp.team.displayName : awayComp.team.displayName;
+                            let goalText = clock ? `${teamName}: ${playerName} (${clock}')` : `${teamName}: ${playerName}`;
 
-                            if (isHomeGoal) {
-                                goalsHome.push(`⚽ ${goalEntry}`);
-                            } else {
-                                goalsAway.push(`⚽ ${goalEntryAway}`);
-                            }
+                            matchGoals.push({
+                                text: `⚽ ${scorePrefix} ${goalText}`,
+                                isHome: isHomeGoal
+                            });
                         });
                     }
 
@@ -989,25 +994,13 @@
                         let currAway = awayScoreVal ?? 0;
 
                         if (currHome > oldHome || currAway > oldAway) {
-                            let latestScorer = "";
-                            if (currHome > oldHome && goalsHome.length > 0) {
-                                latestScorer = goalsHome[goalsHome.length - 1];
-                            } else if (currAway > oldAway && goalsAway.length > 0) {
-                                latestScorer = goalsAway[goalsAway.length - 1];
-                            }
-                            
-                            if (!latestScorer || latestScorer.trim() === "⚽" || latestScorer.includes("Tor")) {
-                                latestScorer = `⚽ Tor erzielt! (${currHome}:${currAway})`;
-                            }
-
                             let pushKey = `pushed_${matchKey}_${currHome}_${currAway}`;
                             let alreadyPushed = localStorage.getItem(pushKey) === 'true';
 
                             if (!alreadyPushed) {
                                 localStorage.setItem(pushKey, 'true');
-
                                 let pushTitle = `⚽ TOR! ${currHome}:${currAway}`;
-                                let pushBody = `${homeComp.team.displayName} vs ${awayComp.team.displayName}\n${latestScorer}`;
+                                let pushBody = `${homeComp.team.displayName} vs ${awayComp.team.displayName}\nTor erzielt!`;
                                 triggerAutomaticPush(pushTitle, pushBody);
                             }
                         }
@@ -1023,8 +1016,7 @@
                         isFinished: statusType === 'post',
                         isLive: isLive,
                         dateTime: ev.date,
-                        goalsHome: goalsHome,
-                        goalsAway: goalsAway
+                        goals: matchGoals
                     });
                 });
 
@@ -1092,34 +1084,23 @@
 
         let scorersMap = {};
         allMatches.forEach(m => {
-            let parseScorers = (gList) => {
-                if (Array.isArray(gList)) {
-                    gList.forEach(g => {
-                        let clean = g.replace('⚽', '').trim();
-                        if (clean.includes(':')) {
-                            clean = clean.split(':')[1].trim();
-                        }
-                        if (clean.startsWith('[')) {
-                            let closeIdx = clean.indexOf(']');
-                            if (closeIdx !== -1) {
-                                clean = clean.substring(closeIdx + 1).trim();
-                            }
-                        }
-                        if (clean.includes(':')) {
-                            clean = clean.split(':')[1].trim();
-                        }
-                        let name = clean.split('(')[0].trim();
-                        if (name && name.toLowerCase() !== 'tor') {
-                            scorersMap[name] = (scorersMap[name] || 0) + 1;
-                        }
-                    });
-                }
-            };
-            parseScorers(m.goalsHome);
-            parseScorers(m.goalsAway);
+            if (Array.isArray(m.goals)) {
+                m.goals.forEach(gObj => {
+                    let tmp = gObj.text.replace('⚽', '').trim();
+                    if (tmp.includes(']')) tmp = tmp.split(']')[1].trim();
+                    if (tmp.includes(':')) tmp = tmp.split(':')[1].trim();
+                    let name = tmp.split('(')[0].trim();
+                    // Team anhand der Zuordnung ermitteln
+                    let teamName = gObj.isHome ? m.home : m.away;
+                    if (name && name.toLowerCase() !== 'tor') {
+                        if (!scorersMap[name]) scorersMap[name] = { count: 0, team: teamName };
+                        scorersMap[name].count++;
+                    }
+                });
+            }
         });
 
-        let sortedScorers = Object.keys(scorersMap).map(name => ({ name: name, goals: scorersMap[name] }));
+        let sortedScorers = Object.keys(scorersMap).map(name => ({ name: name, goals: scorersMap[name].count, team: scorersMap[name].team }));
         sortedScorers.sort((a, b) => b.goals - a.goals);
         let top3 = sortedScorers.slice(0, 3);
 
@@ -1171,9 +1152,7 @@
     function getTeamHtml(teamName, isWinner = false) {
         let logoUrl = teamLogos[teamName.trim().toLowerCase()] || "";
         let logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + teamName + '" class="team-mini-logo">' : '';
-
         let nameStyle = isWinner ? 'font-weight: 800; color: #3fb950;' : 'font-weight: 500; color: var(--text-muted);';
-
         return `<div class="match-team-info">${logoHtml}<span style="${nameStyle}">${teamName}</span></div>`;
     }
 
@@ -1187,30 +1166,19 @@
             let list = leagueMatches[mDay];
             if (Array.isArray(list)) {
                 list.forEach(m => {
-                    let parse = (gList, team) => {
-                        gList.forEach(g => {
-                            let clean = g.replace('⚽', '').trim();
-                            if (clean.includes(':')) {
-                                clean = clean.split(':')[1].trim();
-                            }
-                            if (clean.startsWith('[')) {
-                                let closeIdx = clean.indexOf(']');
-                                if (closeIdx !== -1) {
-                                    clean = clean.substring(closeIdx + 1).trim();
-                                }
-                            }
-                            if (clean.includes(':')) {
-                                clean = clean.split(':')[1].trim();
-                            }
-                            let name = clean.split('(')[0].trim();
+                    if (Array.isArray(m.goals)) {
+                        m.goals.forEach(gObj => {
+                            let tmp = gObj.text.replace('⚽', '').trim();
+                            if (tmp.includes(']')) tmp = tmp.split(']')[1].trim();
+                            if (tmp.includes(':')) tmp = tmp.split(':')[1].trim();
+                            let name = tmp.split('(')[0].trim();
+                            let teamName = gObj.isHome ? m.home : m.away;
                             if (name && name.toLowerCase() !== 'tor') {
-                                if (!scorersMap[name]) scorersMap[name] = { count: 0, team: team };
+                                if (!scorersMap[name]) scorersMap[name] = { count: 0, team: teamName };
                                 scorersMap[name].count++;
                             }
                         });
-                    };
-                    if (m.goalsHome) parse(m.goalsHome, m.home);
-                    if (m.goalsAway) parse(m.goalsAway, m.away);
+                    }
                 });
             }
         }
@@ -1248,7 +1216,6 @@
     function openHistoryModal() {
         let tbody = document.getElementById('leagueHistoryModalBody');
         tbody.innerHTML = '';
-        
         historyData.forEach(item => {
             let tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1257,7 +1224,6 @@
             `;
             tbody.appendChild(tr);
         });
-
         document.getElementById('leagueHistoryModal').style.display = 'flex';
     }
 
@@ -1300,13 +1266,12 @@
             let homeScoreDisplay = hasResult ? m.homeScore : '-';
             let awayScoreDisplay = hasResult ? m.awayScore : '-';
 
-            let goalsCombined = [];
-            if (m.goalsHome) goalsCombined.push(...m.goalsHome);
-            if (m.goalsAway) goalsCombined.push(...m.goalsAway);
-
             let goalsHtml = '';
-            if (goalsCombined.length > 0) {
-                let formattedGoals = goalsCombined.map(g => `<div class="goal-item">${g}</div>`).join('');
+            if (Array.isArray(m.goals) && m.goals.length > 0) {
+                let formattedGoals = m.goals.map(gObj => {
+                    let goalClass = gObj.isHome ? 'home-goal' : 'away-goal';
+                    return `<div class="goal-item ${goalClass}">${gObj.text}</div>`;
+                }).join('');
                 goalsHtml = `<div class="match-goals-list">${formattedGoals}</div>`;
             }
 

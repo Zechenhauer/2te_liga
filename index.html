@@ -512,7 +512,7 @@
     <!-- 3ER KACHELN -->
     <div class="dashboard-grid">
         <div class="dash-card">
-            <div class="dash-card-title">⚽ Nächstes Top-Spiel</div>
+            <div class="dash-card-title">⚽ Nächstes Top-Spiel (Form-König)</div>
             <div class="dash-card-content" id="nextMatchWidget">Lade nächstes Spiel...</div>
         </div>
         <div class="dash-card">
@@ -520,8 +520,8 @@
             <div class="dash-card-content" id="topScorersWidget">Wird berechnet...</div>
         </div>
         <div class="dash-card">
-            <div class="dash-card-title">🏆 Ligastatistik</div>
-            <div class="dash-card-content" id="leagueOverviewWidget">Wird geladen...</div>
+            <div class="dash-card-title">🔥 Form-König (letzte 5 Spiele)</div>
+            <div class="dash-card-content" id="formKingWidget">Wird berechnet...</div>
         </div>
     </div>
 
@@ -831,7 +831,6 @@
         }
     }
 
-    // KORRIGIERTE PUSH-LOGIK (Warten auf Torschützen & Verhinderung von Mehrfach-Pushes)
     async function triggerGoalPush(home, away, hScore, aScore, latestScorer) {
         let matchKey = `liga2_st_${currentMatchday}_${home}_vs_${away}`;
         let pushKey = `pushed_${matchKey}_${hScore}_${aScore}`;
@@ -1062,8 +1061,66 @@
         }
         allMatches.sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
 
+        // Form-König Berechnung (wird für Widget & Top-Spiel benötigt)
+        let teamStats = {};
+        allMatches.forEach(m => {
+            if (m.homeScore !== null && m.homeScore !== undefined && m.isFinished) {
+                let h = m.home, a = m.away;
+                if (!teamStats[h]) teamStats[h] = { name: h, matches: [], pts: 0, gd: 0 };
+                if (!teamStats[a]) teamStats[a] = { name: a, matches: [], pts: 0, gd: 0 };
+
+                teamStats[h].matches.push({ date: new Date(m.dateTime || 0), pts: m.homeScore > m.awayScore ? 3 : (m.homeScore === m.awayScore ? 1 : 0), gf: m.homeScore, ga: m.awayScore, gd: m.homeScore - m.awayScore });
+                teamStats[a].matches.push({ date: new Date(m.dateTime || 0), pts: m.awayScore > m.homeScore ? 3 : (m.homeScore === m.awayScore ? 1 : 0), gf: m.awayScore, ga: m.homeScore, gd: m.awayScore - m.homeScore });
+            }
+        });
+
+        let sortedFormTeams = Object.values(teamStats).map(t => {
+            t.matches.sort((a, b) => b.date - a.date);
+            let last5 = t.matches.slice(0, 5);
+            let totalPts = last5.reduce((sum, m) => sum + m.pts, 0);
+            let totalGd = last5.reduce((sum, m) => sum + m.gd, 0);
+            let totalGf = last5.reduce((sum, m) => sum + m.gf, 0);
+            let totalGa = last5.reduce((sum, m) => sum + m.ga, 0);
+            let formString = last5.map(m => m.pts === 3 ? 'S' : (m.pts === 1 ? 'U' : 'N')).join('');
+            return { name: t.name, pts: totalPts, gd: totalGd, gf: totalGf, ga: totalGa, form: formString, count: last5.length };
+        }).filter(t => t.count > 0);
+
+        sortedFormTeams.sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : b.gd - a.gd);
+        let formKing = sortedFormTeams.length > 0 ? sortedFormTeams[0] : null;
+
+        // Render Form-König Widget mit Torverhältnis
+        let formKingWidget = document.getElementById('formKingWidget');
+        if (formKing) {
+            let kingLogo = teamLogos[formKing.name.trim().toLowerCase()] || "";
+            let logoHtml = kingLogo ? `<img src="${kingLogo}" class="team-mini-logo" style="width:20px; height:20px;" alt="Logo">` : '';
+
+            formKingWidget.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    ${logoHtml}
+                    <strong style="color:#ffffff; font-size:0.9rem;">${formKing.name}</strong>
+                </div>
+                <div style="font-size:0.78rem; color:var(--text-muted); display:flex; flex-direction:column; gap:3px;">
+                    <div style="display:flex; justify-content:space-between;"><span>Punkte (L5):</span> <strong style="color:var(--accent-cyan);">${formKing.pts} Pkt</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Tore (L5):</span> <strong style="color:var(--accent-gold);">${formKing.gf}:${formKing.ga}</strong></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Serie:</span> <strong style="color:#3fb950; letter-spacing:1px;">${formKing.form}</strong></div>
+                </div>
+            `;
+        } else {
+            formKingWidget.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Noch keine Form-Daten</span>';
+        }
+
+        // Top-Spiel vom Form-König ermitteln
         let now = new Date();
-        let nextMatch = allMatches.find(m => new Date(m.dateTime || 0) >= now && (m.homeScore === null || m.homeScore === undefined));
+        let nextMatch = null;
+        if (formKing) {
+            let kingMatches = allMatches.filter(m => (m.home === formKing.name || m.away === formKing.name) && new Date(m.dateTime || 0) >= now && (m.homeScore === null || m.homeScore === undefined));
+            kingMatches.sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
+            if (kingMatches.length > 0) nextMatch = kingMatches[0];
+        }
+        // Fallback auf nächstes allgemeines Spiel, falls Form-König keins hat
+        if (!nextMatch) {
+            nextMatch = allMatches.find(m => new Date(m.dateTime || 0) >= now && (m.homeScore === null || m.homeScore === undefined));
+        }
 
         let nextWidget = document.getElementById('nextMatchWidget');
         if (nextMatch && nextMatch.dateTime) {
@@ -1076,6 +1133,7 @@
             nextMatchDateTime = null;
         }
 
+        // Top 3 Torschützen Widget
         let scorersMap = {};
         allMatches.forEach(m => {
             if (Array.isArray(m.goals)) {
@@ -1102,7 +1160,12 @@
             let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
             top3.forEach((s, idx) => {
                 let medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : '🥉');
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; background:#131836; padding:6px 10px; border-radius:6px;"><span>${medal} ${s.name}</span><strong style="color:var(--accent-cyan);">${s.goals} Tore</strong></div>`;
+                let logoUrl = teamLogos[s.team.trim().toLowerCase()] || "";
+                let logoHtml = logoUrl ? `<img src="${logoUrl}" alt="${s.team}" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle; margin-right: 4px;">` : '';
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; background:#131836; padding:6px 10px; border-radius:6px;">
+                    <div><span>${medal} ${s.name}</span><div style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; margin-top:2px;">${logoHtml}${s.team}</div></div>
+                    <strong style="color:var(--accent-cyan);">${s.goals} ⚽</strong>
+                </div>`;
             });
             html += '</div>';
             topScorersWidget.innerHTML = html;
@@ -1118,7 +1181,6 @@
                 totalGoals += (m.homeScore + m.awayScore);
             }
         });
-        document.getElementById('leagueOverviewWidget').innerHTML = `Gespielte Spiele: <strong>${totalFinished}</strong><br>Tore gesamt: <strong style="color:var(--accent-cyan);">${totalGoals}</strong>`;
     }
 
     function updateCountdown() {

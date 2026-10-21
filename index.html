@@ -831,32 +831,41 @@
         }
     }
 
-    async function triggerGoalPush(home, away, hScore, aScore, latestScorer) {
-        let matchKey = `liga2_st_${currentMatchday}_${home}_vs_${away}`;
-        let pushKey = `pushed_${matchKey}_${hScore}_${aScore}`;
-        let alreadyPushed = localStorage.getItem(pushKey) === 'true';
+    async function triggerGoalPush(home, away, hScore, aScore, latestScorer, matchId) {
+        if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        let hasValidScorer = latestScorer && !latestScorer.includes("Tor") && latestScorer.trim() !== "⚽";
+        // Eindeutige ID über den globalen Supabase-Cache (sent_goals_liga2)
+        let uniqueGoalId = `${matchId}_${latestScorer}_${hScore}_${aScore}`;
 
-        if (hasValidScorer && !alreadyPushed) {
-            localStorage.setItem(pushKey, 'true');
+        try {
+            let { data: existing, error: checkError } = await supabaseClient
+                .from('sent_goals_liga2')
+                .select('goal_id')
+                .eq('goal_id', uniqueGoalId)
+                .maybeSingle();
 
-            try {
-                let bodyText = `${home} ${hScore} : ${aScore} ${away}\nTorschütze: ${latestScorer}`;
+            if (!existing && !checkError) {
+                let { error: insertError } = await supabaseClient
+                    .from('sent_goals_liga2')
+                    .insert([{ goal_id: uniqueGoalId }]);
 
-                await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        table: 'push_subscriptions_liga2',
-                        title: "⚽ TOR! (2. Bundesliga)",
-                        body: bodyText
-                    })
-                });
-            } catch (e) {
-                console.error("Fehler beim Push:", e);
+                if (!insertError) {
+                    let bodyText = `${home} ${hScore} : ${aScore} ${away}\nTorschütze: ${latestScorer}`;
+
+                    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            table: 'push_subscriptions_liga2',
+                            title: "⚽ TOR! (2. Bundesliga)",
+                            body: bodyText
+                        })
+                    });
+                }
             }
+        } catch (e) {
+            console.error("Fehler beim globalen 2. Liga Tor-Cache:", e);
         }
     }
 
@@ -990,12 +999,12 @@
                         });
                     }
 
+                    let matchId = 'espn2_' + ev.id;
                     if (homeScoreVal !== null && awayScoreVal !== null) {
-                        let matchId = 'espn2_' + ev.id;
                         let prev = previousEspnScores[matchId];
                         if (prev !== undefined && isLive) {
                             if (homeScoreVal > prev.home || awayScoreVal > prev.away) {
-                                triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, latestScorerText);
+                                triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, latestScorerText, matchId);
                             }
                         }
                         previousEspnScores[matchId] = { home: homeScoreVal, away: awayScoreVal };
@@ -1061,7 +1070,6 @@
         }
         allMatches.sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
 
-        // Form-König Berechnung (wird für Widget & Top-Spiel benötigt)
         let teamStats = {};
         allMatches.forEach(m => {
             if (m.homeScore !== null && m.homeScore !== undefined && m.isFinished) {
@@ -1088,7 +1096,6 @@
         sortedFormTeams.sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : b.gd - a.gd);
         let formKing = sortedFormTeams.length > 0 ? sortedFormTeams[0] : null;
 
-        // Render Form-König Widget mit Torverhältnis
         let formKingWidget = document.getElementById('formKingWidget');
         if (formKing) {
             let kingLogo = teamLogos[formKing.name.trim().toLowerCase()] || "";
@@ -1109,7 +1116,6 @@
             formKingWidget.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Noch keine Form-Daten</span>';
         }
 
-        // Top-Spiel vom Form-König ermitteln
         let now = new Date();
         let nextMatch = null;
         if (formKing) {
@@ -1117,7 +1123,6 @@
             kingMatches.sort((a, b) => new Date(a.dateTime || 0) - new Date(b.dateTime || 0));
             if (kingMatches.length > 0) nextMatch = kingMatches[0];
         }
-        // Fallback auf nächstes allgemeines Spiel, falls Form-König keins hat
         if (!nextMatch) {
             nextMatch = allMatches.find(m => new Date(m.dateTime || 0) >= now && (m.homeScore === null || m.homeScore === undefined));
         }
@@ -1133,7 +1138,6 @@
             nextMatchDateTime = null;
         }
 
-        // Top 3 Torschützen Widget
         let scorersMap = {};
         allMatches.forEach(m => {
             if (Array.isArray(m.goals)) {
@@ -1172,15 +1176,6 @@
         } else {
             topScorersWidget.innerHTML = '<span style="color:var(--text-muted); font-size:0.85rem;">Noch keine Torschützen erfasst</span>';
         }
-
-        let totalFinished = 0;
-        let totalGoals = 0;
-        allMatches.forEach(m => {
-            if (m.homeScore !== null && m.homeScore !== undefined) {
-                totalFinished++;
-                totalGoals += (m.homeScore + m.awayScore);
-            }
-        });
     }
 
     function updateCountdown() {

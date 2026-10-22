@@ -46,6 +46,74 @@
             box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.1);
         }
 
+        /* LAUFBAND / TICKER STYLES */
+        .ticker-wrapper {
+            width: 100%;
+            background: #000000;
+            border: 1px solid var(--accent-cyan);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            height: 36px;
+            position: relative;
+        }
+        .ticker-label {
+            background: var(--accent-cyan);
+            color: #070913;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 0 12px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            z-index: 2;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .ticker-content-box {
+            overflow: hidden;
+            white-space: nowrap;
+            flex: 1;
+            position: relative;
+        }
+        .ticker-track {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker-scroll 95s linear infinite;
+            font-size: 0.85rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+        .ticker-track:hover {
+            animation-play-state: paused;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 30px;
+            color: #ffffff;
+        }
+        .ticker-item span {
+            color: #ffffff;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        /* Dezente Highlight-Markierung für den Tabellenführer im Ticker */
+        .ticker-highlight-leader {
+            background: rgba(0, 242, 254, 0.2);
+            border-top: 1px solid var(--accent-cyan);
+            border-bottom: 1px solid var(--accent-cyan);
+            padding-top: 2px;
+            padding-bottom: 2px;
+            border-radius: 4px;
+        }
+        @keyframes ticker-scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
         .header-banner {
             background: linear-gradient(135deg, #131836 0%, #22123d 100%);
             border: 1px solid var(--accent-purple);
@@ -495,6 +563,16 @@
 <body>
 
 <div class="container">
+    <!-- LAUFBAND / LIVE-TICKER OBEN (NEU) -->
+    <div class="ticker-wrapper">
+        <div class="ticker-label" id="tickerLabel">⚽ Ticker</div>
+        <div class="ticker-content-box">
+            <div class="ticker-track" id="tickerTrack">
+                <span class="ticker-item">Lade aktuelle Spielstände und Tore...</span>
+            </div>
+        </div>
+    </div>
+
     <div class="header-banner">
         <div class="title-row">
             <img src="https://lhusylpjnujlqomougmg.supabase.co/storage/v1/object/public/logos%202te%20liga/germany_2-bundesliga_1500x1500.football-logos.cc.png" alt="2. BL Logo" class="header-logo">
@@ -655,6 +733,8 @@
 
     const ADMIN_PIN = "1919";
     let isAdmin = false;
+    let latestLiveGoalsTicker = [];
+    let currentLeaderTeam = "";
 
     function initVisitorCounter() {
         let count = parseInt(localStorage.getItem('bundesliga2_app_visitors') || '20');
@@ -834,7 +914,6 @@
     async function triggerGoalPush(home, away, hScore, aScore, latestScorer, matchId) {
         if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        // Eindeutige ID über den globalen Supabase-Cache (sent_goals_liga2)
         let uniqueGoalId = `${matchId}_${latestScorer}_${hScore}_${aScore}`;
 
         try {
@@ -901,6 +980,7 @@
             }
 
             leagueMatches = {};
+            latestLiveGoalsTicker = [];
             let hasLive = false;
 
             for (let s = 1; s <= 34; s++) {
@@ -996,6 +1076,12 @@
                                 text: `⚽ ${scorePrefix} ${teamName}: ${goalEntry}`,
                                 isHome: isHomeGoal
                             });
+
+                            if (isLive) {
+                                let isLeaderMatch = (homeComp.team.displayName === currentLeaderTeam || awayComp.team.displayName === currentLeaderTeam);
+                                let highlightClass = isLeaderMatch ? ' ticker-highlight-leader' : '';
+                                latestLiveGoalsTicker.push(`<span class="ticker-item${highlightClass}">⚽ ${teamName}: ${playerName} ${clock ? '(' + clock + ')' : ''} <span>${homeComp.team.displayName} ${homeScoreVal}:${awayScoreVal} ${awayComp.team.displayName}</span></span>`);
+                            }
                         });
                     }
 
@@ -1042,11 +1128,61 @@
         }
 
         renderAll();
+        updateTicker();
+    }
+
+    // TICKER AKTUALISIERUNG MIT TABELLENFÜHRER-HIGHLIGHT & DYNAMISCHEM LABEL
+    function updateTicker() {
+        let tickerItems = [];
+        let labelText = "⚽ Ticker";
+
+        if (latestLiveGoalsTicker.length > 0) {
+            tickerItems = latestLiveGoalsTicker;
+            labelText = "⚽ LIVE-TORE";
+        } else {
+            let targetMatchday = currentMatchday;
+            let matches = leagueMatches[targetMatchday] || [];
+            
+            let hasResults = matches.some(m => m.homeScore !== null && m.homeScore !== undefined || m.isFinished);
+            if (!hasResults && targetMatchday > 1) {
+                for (let d = targetMatchday - 1; d >= 1; d--) {
+                    let prevMatches = leagueMatches[d] || [];
+                    if (prevMatches.some(m => m.homeScore !== null && m.homeScore !== undefined || m.isFinished)) {
+                        targetMatchday = d;
+                        matches = prevMatches;
+                        break;
+                    }
+                }
+            }
+
+            labelText = `⚽ SPIELTAG ${targetMatchday} (ERGEBNISSE)`;
+
+            matches.forEach(m => {
+                let score = (m.homeScore !== null && m.homeScore !== undefined) ? `${m.homeScore}:${m.awayScore}` : 'vs';
+                let status = m.isLive ? '🔴 LIVE' : (m.isFinished ? 'Endstand' : m.time || '');
+                
+                let isLeaderMatch = (m.home === currentLeaderTeam || m.away === currentLeaderTeam);
+                let highlightClass = isLeaderMatch ? ' ticker-highlight-leader' : '';
+                
+                tickerItems.push(`<span class="ticker-item${highlightClass}">${m.home} - ${m.away} <span>${score}</span> (${status})</span>`);
+            });
+        }
+
+        const tickerLabelElem = document.getElementById('tickerLabel');
+        if (tickerLabelElem) {
+            tickerLabelElem.textContent = labelText;
+        }
+
+        const tickerTrack = document.getElementById('tickerTrack');
+        if (tickerTrack) {
+            tickerTrack.innerHTML = tickerItems.length > 0 ? tickerItems.join('') : `<span class="ticker-item">Keine Spiele im Ticker verfügbar.</span>`;
+        }
     }
 
     function changeMatchday(amount) {
         currentMatchday = Math.max(1, Math.min(34, currentMatchday + amount));
         renderAll();
+        updateTicker();
     }
 
     function renderAll() {
@@ -1056,6 +1192,7 @@
         renderMatchdayCards();
         renderTable();
         updateWidgets();
+        updateTicker();
     }
 
     function updateWidgets() {
@@ -1380,6 +1517,10 @@
 
         let sorted = Object.values(stats).sort((a, b) => b.points !== a.points ? b.points - a.points : (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst));
         
+        if (sorted.length > 0) {
+            currentLeaderTeam = sorted[0].name;
+        }
+
         sorted.forEach((s, idx) => {
             let tr = document.createElement('tr');
             let rank = idx + 1;

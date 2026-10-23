@@ -100,7 +100,6 @@
             font-weight: bold;
             margin-left: 6px;
         }
-        /* Dezente Highlight-Markierung für den Tabellenführer im Ticker */
         .ticker-highlight-leader {
             background: rgba(0, 242, 254, 0.2);
             border-top: 1px solid var(--accent-cyan);
@@ -563,7 +562,7 @@
 <body>
 
 <div class="container">
-    <!-- LAUFBAND / LIVE-TICKER OBEN (NEU) -->
+    <!-- LAUFBAND / LIVE-TICKER OBEN -->
     <div class="ticker-wrapper">
         <div class="ticker-label" id="tickerLabel">⚽ Ticker</div>
         <div class="ticker-content-box">
@@ -911,10 +910,12 @@
         }
     }
 
+    // KORRIGIERTER PUSH-DIENST (Felsenfest & ohne undefined Variablencrashs)
     async function triggerGoalPush(home, away, hScore, aScore, latestScorer, matchId) {
         if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}`;
+        // Eindeutige, felsenfreie Goal-ID basierend auf Match, aktuellem Spielstand und Torschütze
+        let uniqueGoalId = `${matchId}_${hScore}-${aScore}_${latestScorer}`;
 
         try {
             let { data: existing, error: checkError } = await supabaseClient

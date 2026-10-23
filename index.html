@@ -914,7 +914,7 @@
     async function triggerGoalPush(home, away, hScore, aScore, latestScorer, matchId) {
         if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        let uniqueGoalId = `${matchId}_${latestScorer}_${hScore}_${aScore}`;
+        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}`;
 
         try {
             let { data: existing, error: checkError } = await supabaseClient

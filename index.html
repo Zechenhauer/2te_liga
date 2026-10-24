@@ -46,71 +46,88 @@
             box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.1);
         }
 
-        /* LAUFBAND / TICKER STYLES */
+        /* 1:1 AS-ROM / KÖLN LAUFBAND-DESIGN (Heller, höher & mit Kapseln) */
         .ticker-wrapper {
             width: 100%;
-            background: #000000;
-            border: 1px solid var(--accent-cyan);
-            border-radius: 6px;
+            background: #070913;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
             overflow: hidden;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
-            height: 36px;
+            height: 48px;
             position: relative;
         }
         .ticker-label {
             background: var(--accent-cyan);
             color: #070913;
             font-size: 0.75rem;
-            font-weight: 800;
-            padding: 0 12px;
+            font-weight: bold;
+            padding: 0 14px;
             height: 100%;
             display: flex;
             align-items: center;
-            z-index: 2;
+            z-index: 3;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             white-space: nowrap;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.5);
         }
         .ticker-content-box {
             overflow: hidden;
             white-space: nowrap;
             flex: 1;
             position: relative;
+            display: flex;
+            align-items: center;
         }
         .ticker-track {
-            display: inline-block;
+            display: flex;
             white-space: nowrap;
-            animation: ticker-scroll 95s linear infinite;
-            font-size: 0.85rem;
-            color: #ffffff;
-            font-weight: 500;
+            will-change: transform;
+            animation: ticker-scroll 35s linear infinite;
         }
         .ticker-track:hover {
             animation-play-state: paused;
         }
+        
+        /* Die einzelnen Spiel-Kapseln im exakten Stil */
         .ticker-item {
-            display: inline-block;
-            padding: 0 30px;
+            display: inline-flex;
+            align-items: center;
+            background: #131932;
+            border: 1px solid #273352;
+            padding: 6px 14px;
+            margin: 0 6px;
+            border-radius: 8px;
             color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 500;
+            gap: 10px;
         }
-        .ticker-item span {
+        .ticker-team-logo {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            vertical-align: middle;
+        }
+        .ticker-score {
             color: #ffffff;
             font-weight: bold;
-            margin-left: 6px;
-        }
-        .ticker-highlight-leader {
-            background: rgba(0, 242, 254, 0.2);
-            border-top: 1px solid var(--accent-cyan);
-            border-bottom: 1px solid var(--accent-cyan);
-            padding-top: 2px;
-            padding-bottom: 2px;
+            font-size: 0.9rem;
+            background: #1a2240;
+            padding: 2px 8px;
             border-radius: 4px;
+            border: 1px solid #32416c;
+        }
+        .ticker-item.ticker-highlight-leader {
+            border: 1px solid var(--accent-cyan);
+            background: rgba(0, 242, 254, 0.15);
         }
         @keyframes ticker-scroll {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
         }
 
         .header-banner {
@@ -562,7 +579,7 @@
 <body>
 
 <div class="container">
-    <!-- LAUFBAND / LIVE-TICKER OBEN -->
+    <!-- 1:1 AS-ROM / KÖLN LAUFBAND OBEN -->
     <div class="ticker-wrapper">
         <div class="ticker-label" id="tickerLabel">⚽ Ticker</div>
         <div class="ticker-content-box">
@@ -910,11 +927,9 @@
         }
     }
 
-    // KORRIGIERTER PUSH-DIENST MIT LAUFENDEM SPIELSTAND (VERHINDERT FEHLERHAFTE IDs)
     async function triggerGoalPush(home, away, hScore, aScore, latestScorer, runningScoreStr, matchId) {
         if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        // Eindeutige Goal-ID basierend auf Match, dem genauen Spielstand zum Zeitpunkt des Tores und dem Torschützen
         let uniqueGoalId = `${matchId}_${runningScoreStr}_${latestScorer}`;
 
         try {
@@ -1072,7 +1087,6 @@
                             let teamName = isHomeGoal ? homeComp.team.displayName : awayComp.team.displayName;
                             let goalEntry = clock ? `${playerName} (${clock}')` : playerName;
 
-                            // Triggere Push mit dem echten, fortlaufenden Spielstand zum Zeitpunkt des Tores
                             if (isLive) {
                                 triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, goalEntry, scorePrefix, matchId);
                             }
@@ -1085,7 +1099,13 @@
                             if (isLive) {
                                 let isLeaderMatch = (homeComp.team.displayName === currentLeaderTeam || awayComp.team.displayName === currentLeaderTeam);
                                 let highlightClass = isLeaderMatch ? ' ticker-highlight-leader' : '';
-                                latestLiveGoalsTicker.push(`<span class="ticker-item${highlightClass}">⚽ ${teamName}: ${playerName} ${clock ? '(' + clock + ')' : ''} <span>${homeComp.team.displayName} ${homeScoreVal}:${awayScoreVal} ${awayComp.team.displayName}</span></span>`);
+                                
+                                let hLogo = teamLogos[homeComp.team.displayName.trim().toLowerCase()] || "";
+                                let aLogo = teamLogos[awayComp.team.displayName.trim().toLowerCase()] || "";
+                                let hLogoImg = hLogo ? `<img src="${hLogo}" class="ticker-team-logo">` : '';
+                                let aLogoImg = aLogo ? `<img src="${aLogo}" class="ticker-team-logo">` : '';
+
+                                latestLiveGoalsTicker.push(`<span class="ticker-item${highlightClass}">${hLogoImg} ${homeComp.team.displayName} <span class="ticker-score">${homeScoreVal}:${awayScoreVal}</span> ${awayComp.team.displayName} ${aLogoImg}</span>`);
                             }
                         });
                     }
@@ -1093,6 +1113,8 @@
                     leagueMatches[s].push({
                         home: homeComp.team.displayName,
                         away: awayComp.team.displayName,
+                        homeLogo: homeComp.team.logo || "",
+                        awayLogo: awayComp.team.logo || "",
                         date: dateStr,
                         time: timeStr,
                         homeScore: homeScoreVal,
@@ -1125,7 +1147,7 @@
         updateTicker();
     }
 
-    // TICKER AKTUALISIERUNG MIT TABELLENFÜHRER-HIGHLIGHT & DYNAMISCHEM LABEL
+    // EXAKTES AS-ROM / KÖLN TICKER-FORMAT MIT SPIEL-KAPSELN
     function updateTicker() {
         let tickerItems = [];
         let labelText = "⚽ Ticker";
@@ -1149,16 +1171,19 @@
                 }
             }
 
-            labelText = `⚽ SPIELTAG ${targetMatchday} (ERGEBNISSE)`;
+            labelText = `⚽ SPIELTAG ${targetMatchday}`;
 
             matches.forEach(m => {
                 let score = (m.homeScore !== null && m.homeScore !== undefined) ? `${m.homeScore}:${m.awayScore}` : 'vs';
-                let status = m.isLive ? '🔴 LIVE' : (m.isFinished ? 'Endstand' : m.time || '');
-                
                 let isLeaderMatch = (m.home === currentLeaderTeam || m.away === currentLeaderTeam);
                 let highlightClass = isLeaderMatch ? ' ticker-highlight-leader' : '';
+
+                let hLogo = m.homeLogo || teamLogos[m.home.trim().toLowerCase()] || "";
+                let aLogo = m.awayLogo || teamLogos[m.away.trim().toLowerCase()] || "";
+                let hLogoImg = hLogo ? `<img src="${hLogo}" class="ticker-team-logo">` : '';
+                let aLogoImg = aLogo ? `<img src="${aLogo}" class="ticker-team-logo">` : '';
                 
-                tickerItems.push(`<span class="ticker-item${highlightClass}">${m.home} - ${m.away} <span>${score}</span> (${status})</span>`);
+                tickerItems.push(`<span class="ticker-item${highlightClass}">${hLogoImg} ${m.home} <span class="ticker-score">${score}</span> ${m.away} ${aLogoImg}</span>`);
             });
         }
 
@@ -1169,7 +1194,12 @@
 
         const tickerTrack = document.getElementById('tickerTrack');
         if (tickerTrack) {
-            tickerTrack.innerHTML = tickerItems.length > 0 ? tickerItems.join('') : `<span class="ticker-item">Keine Spiele im Ticker verfügbar.</span>`;
+            if (tickerItems.length > 0) {
+                let innerHtml = tickerItems.join('');
+                tickerTrack.innerHTML = innerHtml + innerHtml;
+            } else {
+                tickerTrack.innerHTML = `<span class="ticker-item">Keine Spiele im Ticker verfügbar.</span>`;
+            }
         }
     }
 

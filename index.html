@@ -910,12 +910,12 @@
         }
     }
 
-    // KORRIGIERTER PUSH-DIENST (Felsenfest & ohne undefined Variablencrashs)
-    async function triggerGoalPush(home, away, hScore, aScore, latestScorer, matchId) {
+    // KORRIGIERTER PUSH-DIENST MIT LAUFENDEM SPIELSTAND (VERHINDERT FEHLERHAFTE IDs)
+    async function triggerGoalPush(home, away, hScore, aScore, latestScorer, runningScoreStr, matchId) {
         if (!latestScorer || latestScorer.includes("Tor") || latestScorer.trim() === "⚽") return;
 
-        // Eindeutige, felsenfreie Goal-ID basierend auf Match, aktuellem Spielstand und Torschütze
-        let uniqueGoalId = `${matchId}_${hScore}-${aScore}_${latestScorer}`;
+        // Eindeutige Goal-ID basierend auf Match, dem genauen Spielstand zum Zeitpunkt des Tores und dem Torschützen
+        let uniqueGoalId = `${matchId}_${runningScoreStr}_${latestScorer}`;
 
         try {
             let { data: existing, error: checkError } = await supabaseClient
@@ -938,7 +938,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             table: 'push_subscriptions_liga2',
-                            title: "⚽ TOR! (2. Bundesliga)",
+                            title: `⚽ TOR! (${runningScoreStr})`,
                             body: bodyText
                         })
                     });
@@ -1032,7 +1032,7 @@
                     let awayScoreVal = awayComp.score !== undefined && awayComp.score !== "" && statusType !== 'pre' ? parseInt(awayComp.score) : null;
                     
                     let matchGoals = [];
-                    let latestScorerText = "";
+                    let matchId = 'espn2_' + ev.id;
 
                     if (comp.details && Array.isArray(comp.details)) {
                         let sortedDetails = [...comp.details].filter(d => d.type?.text === "Goal" || d.scoringPlay || d.goalValue > 0);
@@ -1068,13 +1068,17 @@
                             if (isHomeGoal) runningHome++;
                             else runningAway++;
 
-                            let scorePrefix = `[${runningHome}:${runningAway}]`;
+                            let scorePrefix = `${runningHome}-${runningAway}`;
                             let teamName = isHomeGoal ? homeComp.team.displayName : awayComp.team.displayName;
                             let goalEntry = clock ? `${playerName} (${clock}')` : playerName;
-                            latestScorerText = goalEntry;
+
+                            // Triggere Push mit dem echten, fortlaufenden Spielstand zum Zeitpunkt des Tores
+                            if (isLive) {
+                                triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, goalEntry, scorePrefix, matchId);
+                            }
 
                             matchGoals.push({
-                                text: `⚽ ${scorePrefix} ${teamName}: ${goalEntry}`,
+                                text: `⚽ [${runningHome}:${runningAway}] ${teamName}: ${goalEntry}`,
                                 isHome: isHomeGoal
                             });
 
@@ -1084,17 +1088,6 @@
                                 latestLiveGoalsTicker.push(`<span class="ticker-item${highlightClass}">⚽ ${teamName}: ${playerName} ${clock ? '(' + clock + ')' : ''} <span>${homeComp.team.displayName} ${homeScoreVal}:${awayScoreVal} ${awayComp.team.displayName}</span></span>`);
                             }
                         });
-                    }
-
-                    let matchId = 'espn2_' + ev.id;
-                    if (homeScoreVal !== null && awayScoreVal !== null) {
-                        let prev = previousEspnScores[matchId];
-                        if (prev !== undefined && isLive) {
-                            if (homeScoreVal > prev.home || awayScoreVal > prev.away) {
-                                triggerGoalPush(homeComp.team.displayName, awayComp.team.displayName, homeScoreVal, awayScoreVal, latestScorerText, matchId);
-                            }
-                        }
-                        previousEspnScores[matchId] = { home: homeScoreVal, away: awayScoreVal };
                     }
 
                     leagueMatches[s].push({
